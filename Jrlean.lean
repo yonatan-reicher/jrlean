@@ -1,1 +1,2 @@
-import Jrlean.Basic
+module
+public import Jrlean.Basic
