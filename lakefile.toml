@@ -1,0 +1,10 @@
+name = "jrlean"
+version = "0.1.0"
+defaultTargets = ["jrlean"]
+
+[[lean_lib]]
+name = "Jrlean"
+
+[[lean_exe]]
+name = "jrlean"
+root = "Main"
