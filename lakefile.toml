@@ -1,5 +1,6 @@
 name = "jrlean"
 version = "0.1.0"
+defaultTargets = ["Jrlean"]
 
 [[lean_lib]]
 name = "Jrlean"
