@@ -7,8 +7,8 @@ namespace Jrlean
 
 example (x : Nat) : Int := coe x
 
-@[expose, reducible]
-public def cast {α β} (x : α) (h : α = β := by grind) : β := h ▸ x
+@[expose, reducible] public def cast {α β} (x : α) (h : α = β := by grind) : β := h ▸ x
+@[expose, reducible] public def castAs {α} (β) (x : α) (h : α = β := by grind) : β := h ▸ x
 
 example (n : Nat) : Vector Nat 0 :=
   cast (Vector.range (n - n))
