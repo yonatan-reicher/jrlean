@@ -2,9 +2,14 @@ module
 
 /-
 An implementation of Algebraic Effects.
-This is a monad called Effect which is indexed by a set of possible effects.
-The effects themselves are just types, and instances of them can be passed as
-messages to an effect handler, which interprets them and reacts.
+This is a monad called Effects which is indexed by a set of possible effects.
+The effects themselves types which implement Effect, and instances of them can
+be passed as messages and then handler, which interprets them and reacts.
+
+Actually, I had trouble implementing the concept of an effect handler because it
+required predicating on type equality, and we cannot do that. For now, instead
+of effect handlers, the effects themselves define generic translations to
+monads.
 -/
 
 namespace Jrlean
