@@ -36,7 +36,7 @@ where
     | .effectThen msg y => .effectThen msg (bind y f)
 
 class EffectHandler H Result [Monad Result] effect where
-  handle {effects a} : H → effect → Effect effects a → Result a
+  handle {a} : H → effect → Result a → Result a
 
 def Effect.run
   {α}
@@ -50,19 +50,20 @@ def Effect.run
   | .effectThen (e := e) msg cont =>
     let handler := handlers e
     have := (Handler e).2
-    EffectHandler.handle handler msg cont
+    EffectHandler.handle handler msg (run handlers cont)
 
 --- The crashing effect
 structure Crash
 def crash : Crash := {}
 
 structure CrashHandler
-instance : EffectHandler CrashHandler Option Crash where
-  handle _h _msg _cont := none
+instance {m err} [MonadExcept err m] [Monad m] [Inhabited err]
+: EffectHandler CrashHandler m Crash where
+  handle _h _msg _cont := throw default
 
 def div (x y : Nat) : Effect (· = Crash) Nat := do
   if y == 0 then
-    Effect.effect crash
+    .effect crash
     return 0
   else
     return (x / y)
@@ -77,7 +78,7 @@ def div (x y : Nat) : Effect (· = Crash) Nat := do
     (handlers := fun _ => CrashHandler.mk)
     (div 10 0)
 
-#eval show Option Nat from
+#eval show IO Nat from
   Effect.run
     (effects := (· = Crash))
     (Handler := fun e =>
@@ -86,5 +87,43 @@ def div (x y : Nat) : Effect (· = Crash) Nat := do
       ⟨CrashHandler, this⟩)
     (handlers := fun _ => CrashHandler.mk)
     (div 10 5)
+
+--- Print a value
+structure Print where
+  msg : String
+def print (msg : String) : Print := ⟨msg⟩
+
+structure PrintHandler
+instance : EffectHandler PrintHandler IO Print where
+  handle _h msg cont := do
+    IO.println msg.msg
+    cont
+
+@[instance]
+axiom decidable_eq : DecidableEq Type
+@[simp]
+axiom neq : Crash != Print
+
+#eval show IO Nat from
+  Effect.run
+    (effects := fun e => e = Crash ∨ e = Print)
+    (Handler := fun e =>
+      if h : e = Crash then
+        have : EffectHandler CrashHandler _ e := by rw [h]; infer_instance
+        ⟨CrashHandler, this⟩
+      else
+        have h : e = Print := by grind
+        have : EffectHandler PrintHandler _ e := by rw [h]; infer_instance
+        ⟨PrintHandler, this⟩
+      )
+    (handlers := fun e =>
+      if h_crash : e = Crash then by simp [*]; exact CrashHandler.mk
+      else by simp_all; exact PrintHandler.mk
+      )
+    do
+      .effect $ print "Hello, world!"
+      .effect $ print "This is an effect handler example."
+      .effect crash
+      return 42
 
 end Jrlean
