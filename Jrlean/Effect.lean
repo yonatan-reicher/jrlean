@@ -23,19 +23,19 @@ private instance {X} {x : X} {p : X → Prop} [p x]
 : ∀ x' : { x' // x' = x}, p x' := by grind
 
 --- The effect monad just stores the output
-inductive Effect (effects : Set Type) (a : Type) where
-  | pure : a → Effect effects a
-  | effectThen {e : { e // effects e } } : ↑e → Effect effects a → Effect effects a
+inductive Effects (effects : Set Type) (a : Type) where
+  | pure : a → Effects effects a
+  | effectThen {e : { e // effects e } } : ↑e → Effects effects a → Effects effects a
 
-def Effect.effect {effects e} (msg : e) (h_mem : effects e := by grind)
-: Effect effects Unit :=
+def Effects.effect {effects e} (msg : e) (h_mem : effects e := by grind)
+: Effects effects Unit :=
   .effectThen (e := ⟨e, h_mem⟩) msg (.pure ())
 
-instance {effects} : Monad (Effect effects) where
+instance {effects} : Monad (Effects effects) where
   pure := .pure
   bind := bind -- defined separately for recursion
 where
-  bind {α β} (x : Effect effects α) (f : α → Effect effects β) :=
+  bind {α β} (x : Effects effects α) (f : α → Effects effects β) :=
     match x with
     | .pure a => f a
     | .effectThen msg y => .effectThen msg (bind y f)
@@ -43,14 +43,14 @@ where
 class EffectHandler H Result [Monad Result] effect where
   handle {a} : H → effect → Result a → Result a
 
-def Effect.run
+def Effects.run
   {α}
   {effects : Set Type}
   {Result}
   [Monad Result]
   {Handler : ∀ e : effects, (H : Type) × EffectHandler H Result e}
   (handlers : ∀ e, (Handler e).1)
-  : Effect effects α → Result α
+  : Effects effects α → Result α
   | .pure a => return a
   | .effectThen (e := e) msg cont =>
     let handler := handlers e
@@ -66,7 +66,7 @@ instance {m err} [MonadExcept err m] [Monad m] [Inhabited err]
 : EffectHandler CrashHandler m Crash where
   handle _h _msg _cont := throw default
 
-def div (x y : Nat) : Effect (· = Crash) Nat := do
+def div (x y : Nat) : Effects (· = Crash) Nat := do
   if y == 0 then
     .effect crash
     return 0
@@ -74,7 +74,7 @@ def div (x y : Nat) : Effect (· = Crash) Nat := do
     return (x / y)
 
 #eval show Option Nat from
-  Effect.run
+  Effects.run
     (effects := (· = Crash))
     (Handler := fun e =>
       have : e = Crash := by grind
@@ -84,7 +84,7 @@ def div (x y : Nat) : Effect (· = Crash) Nat := do
     (div 10 0)
 
 #eval show IO Nat from
-  Effect.run
+  Effects.run
     (effects := (· = Crash))
     (Handler := fun e =>
       have : e = Crash := by grind
@@ -110,7 +110,7 @@ axiom decidable_eq : DecidableEq Type
 axiom neq : Crash != Print
 
 #eval show IO Nat from
-  Effect.run
+  Effects.run
     (effects := fun e => e = Crash ∨ e = Print)
     (Handler := fun e =>
       if h : e = Crash then
