@@ -201,5 +201,3 @@ instance {Inp Out m} [Monad m] [MonadReader (Inp → Out) m] : EffectResult (ask
       intros
       subst_vars
       infer_instance
-
-end Jrlean
