@@ -170,7 +170,7 @@ instance : DecidableEq TypeId := by
         rw [this.1, this.2]
 
 public class HasTypeId (α : Type) where
-  typeId : List Lean.Name
+  typeId : TypeId
 
 -- Unfortunately, Lean does not implement this class for almost any type, so we
 -- have to do it ourselves. What a shame.
