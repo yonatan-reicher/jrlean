@@ -13,6 +13,9 @@ parameters.
 
 namespace Jrlean
 
+/-- Represents the full evaluated name of a type, including it's universe levels
+  and the full list of its type arguments. This only makes sense for types that
+  are fully applied, and with "constant" arguments. -/
 @[ext]
 public structure TypeId where
   name : Lean.Name
