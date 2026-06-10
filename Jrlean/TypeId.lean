@@ -103,6 +103,13 @@ private theorem List.zip_eq {α} (l : List α)
   case nil => rfl
   case cons h t ih => simpa using ih
 
+@[simp]
+private theorem List.isEqv_attachWith {α} P (l1 l2 : List α) {h1 h2} r
+: List.isEqv (l1.attachWith P h1) (l2.attachWith P h2) (r ·.val ·.val)
+= l1.isEqv l2 r := by
+  repeat rw [List.isEqv_eq_decide]
+  simp only [List.length_attachWith, List.getElem_attachWith]
+
 instance : DecidableEq TypeId := by
   intro id1 id2
   -- the decidability is because of the equivalence to boolean equality
