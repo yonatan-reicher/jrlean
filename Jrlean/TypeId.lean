@@ -24,11 +24,11 @@ public structure TypeId where
   deriving Repr, Inhabited, Hashable, TypeName
 
 @[grind]
-def TypeId.size : TypeId → Nat
+public def TypeId.size : TypeId → Nat
   | ⟨_, _, []⟩ => 1
   | ⟨n, u, h :: t⟩ => h.size + size ⟨n, u, t⟩
 
-def TypeId.inductionOnChildren
+public def TypeId.inductionOnChildren
   {P : TypeId → Sort}
   (id : TypeId)
   (base : P { id with arg_ids := [] })
@@ -44,13 +44,13 @@ def TypeId.inductionOnChildren
     exact step
 
 @[grind .]
-theorem TypeId.size_gt_zero (id : TypeId) : id.size > 0 := by
+public theorem TypeId.size_gt_zero (id : TypeId) : id.size > 0 := by
   induction id using TypeId.inductionOnChildren <;> grind
 
 grind_pattern TypeId.size_gt_zero => id.size
 
 @[grind ., grind →]
-theorem TypeId.size_lt_of_mem_arg_ids (id1 id2 : TypeId)
+public theorem TypeId.size_lt_of_mem_arg_ids (id1 id2 : TypeId)
 : id2 ∈ id1.arg_ids → id2.size < id1.size := by
   intro h_mem
   rcases id1 with ⟨_, _, arg_ids⟩
@@ -65,7 +65,7 @@ theorem TypeId.size_lt_of_mem_arg_ids (id1 id2 : TypeId)
       grind
 
 @[induction_eliminator]
-def TypeId.induction
+public def TypeId.induction
   {P : TypeId → Sort}
   (ind : ∀ id, (∀ arg ∈ id.arg_ids, P arg) → P id)
 : ∀ id, P id := by
@@ -81,7 +81,7 @@ def TypeId.induction
       exact size_lt_of_mem_arg_ids id arg h_mem
     exact ih arg.size this arg rfl
 
-def TypeId.beq (id1 id2 : TypeId) :=
+public def TypeId.beq (id1 id2 : TypeId) :=
   -- This is a property needed for proving termination
   let P id := id ∈ id1.arg_ids ∨ id ∈ id2.arg_ids
   id1.name == id2.name
@@ -93,7 +93,7 @@ def TypeId.beq (id1 id2 : TypeId) :=
   termination_by max id1.size id2.size
   decreasing_by grind
 
-instance : BEq TypeId where
+public instance : BEq TypeId where
   beq := TypeId.beq
 
 @[grind =, simp]
