@@ -111,6 +111,8 @@ private theorem List.isEqv_attachWith {α} P (l1 l2 : List α) {h1 h2} r
   simp only [List.length_attachWith, List.getElem_attachWith]
 
 instance : DecidableEq TypeId := by
+  have simp_beq (id1 id2 : TypeId) : (id1 == id2) = id1.beq id2 := by
+    simp only [BEq.beq]
   intro id1 id2
   -- the decidability is because of the equivalence to boolean equality
   suffices id1 = id2 ↔ id1 == id2 from decidable_of_iff' (id1 == id2) this
@@ -124,25 +126,48 @@ instance : DecidableEq TypeId := by
       -- deconstruct the id
       rcases id with ⟨n, u, a⟩
       change ∀ arg ∈ a, arg == arg at ih
-      simp only [BEq.beq, TypeId.beq]
-      suffices (a.attach.zip a.attach).all fun (l, r) => l == r by sorry
-      -- now we just need to prove that all the children all equal
-      suffices ∀ x ∈ a.attach.zip a.attach, x.1 == x.2 by sorry
-      simp
-      intros
-      subst_vars
-      apply ih
-      assumption
+      rw [simp_beq, TypeId.beq]
+      change n == n && u == u && (a.attachWith _ _).isEqv (a.attachWith _ _) _
+      suffices a.isEqv a TypeId.beq = true by simpa
+      suffices ∀ (i : Nat) (h' : i < a.length), a[i].beq a[i] = true by
+        simpa [List.isEqv_eq_decide]
+      grind
   · intro h_beq
+    induction id1 generalizing id2 with | _ id1 ih
+    change ∀ arg ∈ id1.arg_ids, ∀ id, arg == id → arg = id at ih
     ext1
     case name | universe_levels =>
-      rw [BEq.beq] at h_beq
-      unfold TypeId.beq at h_beq
+      rw [simp_beq, TypeId.beq] at h_beq
       grind
     case arg_ids =>
-      induction id1 <;> induction id2
-      case ind.ind id1 id2 ih1 ih2 =>
-        sorry
+      -- Now all that's left is proving the lists of children are equal, knowing
+      -- that the ids are bequal.
+      have h_len_eq : id2.arg_ids.length = id1.arg_ids.length := by
+        clear ih
+        rw [simp_beq, TypeId.beq] at h_beq
+        simp at h_beq
+        replace h_beq : id1.arg_ids.isEqv id2.arg_ids TypeId.beq := by grind
+        rw [List.isEqv_eq_decide] at h_beq
+        split at h_beq
+        · symm; assumption
+        · contradiction
+      ext1 i
+      guard_target = id1.arg_ids[i]? = id2.arg_ids[i]?
+      if h_i : i < id1.arg_ids.length then
+        suffices id1.arg_ids[i] = id2.arg_ids[i] by grind
+        apply ih id1.arg_ids[i] (List.getElem_mem h_i) id2.arg_ids[i]
+        clear ih
+        -- Now all that's left is to show these two are bequal!
+        guard_target = (id1.arg_ids[i] == id2.arg_ids[i]) = true
+        rw [simp_beq, TypeId.beq] at h_beq; simp at h_beq
+        replace h_beq : id1.arg_ids.isEqv id2.arg_ids TypeId.beq := by grind
+        rw [List.isEqv_eq_decide] at h_beq
+        grind
+      else
+        -- Both sides are none
+        have : id1.arg_ids[i]? = none ∧ id2.arg_ids[i]? = none := by
+          grind only [List.getElem?_eq_none]
+        rw [this.1, this.2]
 
 public class HasTypeId (α : Type) where
   typeId : List Lean.Name
