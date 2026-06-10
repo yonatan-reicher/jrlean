@@ -82,14 +82,16 @@ def TypeId.induction
     exact ih arg.size this arg rfl
 
 def TypeId.beq (id1 id2 : TypeId) :=
-  let id1@h:⟨n1, u1, a1⟩ := id1
-  let ⟨n2, u2, a2⟩ := id2
-  n1 == n2 && u1 == u2 && (a1.attach.zip a2.attach).all (fun (l, r) =>
-    have : l.val.size < id1.size := by
-      apply TypeId.size_lt_of_mem_arg_ids
-      grind
-    beq l r)
-  termination_by id1.size
+  -- This is a property needed for proving termination
+  let P id := id ∈ id1.arg_ids ∨ id ∈ id2.arg_ids
+  id1.name == id2.name
+  && id1.universe_levels == id2.universe_levels
+  && List.isEqv
+    (id1.arg_ids.attachWith P (by grind))
+    (id2.arg_ids.attachWith P (by grind))
+    (·.val.beq ·.val)
+  termination_by max id1.size id2.size
+  decreasing_by grind
 
 instance : BEq TypeId where
   beq := TypeId.beq
