@@ -13,7 +13,6 @@ namespace Jrlean
 @[ext]
 public structure TypeId where
   name : Lean.Name
-  -- TODO: rename these two fields
   universeLevels : List Nat
   argIds : List TypeId
   deriving Repr, Inhabited, Hashable, TypeName
