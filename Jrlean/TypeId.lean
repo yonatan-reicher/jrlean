@@ -7,20 +7,37 @@ full names of types.
 
 namespace Jrlean
 
-/-- Represents the full evaluated name of a type, including it's universe levels
-  and the full list of its type arguments. This only makes sense for types that
-  are fully applied, and with "constant" arguments. -/
+/--
+Represents the full evaluated name of a type, including it's universe levels and
+the full list of its type arguments. This only makes sense for types that are
+fully applied, and with "constant" arguments.
+
+This type id ignores universe levels. This is becasue: a. Lean's has universe
+polymorphism, but it's limited to universe expressions, which means that you
+can't define something like the function below, and b. you can't equate between
+types with different universe levels, so even if you had an inconsistency that
+implies that `Type 0 = Type 1`, you can't use that term because it's not
+well-typed.
+
+```lean
+-- This doesn't compile!
+def List.typeId.{u} (α : Type u) : TypeId where
+  name := ``List
+  universeLevels := [(u : Nat)]
+  ..
+```
+-/
 @[ext]
 public structure TypeId where
   name : Lean.Name
-  universeLevels : List Nat
+  -- universeLevels : List Nat
   argIds : List TypeId
   deriving Repr, Inhabited, Hashable, TypeName
 
 @[grind]
 public def TypeId.size : TypeId → Nat
-  | ⟨_, _, []⟩ => 1
-  | ⟨n, u, h :: t⟩ => h.size + size ⟨n, u, t⟩
+  | ⟨_, []⟩ => 1
+  | ⟨n, h :: t⟩ => h.size + size ⟨n, t⟩
 
 public def TypeId.inductionOnChildren
   {P : TypeId → Sort}
@@ -28,7 +45,7 @@ public def TypeId.inductionOnChildren
   (base : P { id with argIds := [] })
   (step : ∀ h t, P { id with argIds := t } → P { id with argIds := h :: t })
 : P id := by
-  rcases id with ⟨n, u, a⟩
+  rcases id with ⟨n, a⟩
   induction a
   case nil => exact base
   case cons h t ih =>
@@ -47,7 +64,7 @@ grind_pattern TypeId.size_gt_zero => id.size
 public theorem TypeId.size_lt_of_mem_argIds (id1 id2 : TypeId)
 : id2 ∈ id1.argIds → id2.size < id1.size := by
   intro h_mem
-  rcases id1 with ⟨_, _, argIds⟩
+  rcases id1 with ⟨_, argIds⟩
   induction argIds
   case nil => contradiction
   case cons head tail ih =>
@@ -80,7 +97,7 @@ public def TypeId.beq (id1 id2 : TypeId) :=
   -- This is a property needed for proving termination
   let P id := id ∈ id1.argIds ∨ id ∈ id2.argIds
   id1.name == id2.name
-  && id1.universeLevels == id2.universeLevels
+  -- && id1.universeLevels == id2.universeLevels
   && List.isEqv
     (id1.argIds.attachWith P (by grind))
     (id2.argIds.attachWith P (by grind))
@@ -117,10 +134,10 @@ public instance : DecidableEq TypeId := by
     induction id1
     case ind id ih =>
       -- deconstruct the id
-      rcases id with ⟨n, u, a⟩
+      rcases id with ⟨n, a⟩
       change ∀ arg ∈ a, arg.beq arg at ih
       rw [TypeId.beq]
-      change n == n && u == u && (a.attachWith _ _).isEqv (a.attachWith _ _) _
+      change n == n && (a.attachWith _ _).isEqv (a.attachWith _ _) _
       suffices a.isEqv a TypeId.beq = true by simpa
       suffices ∀ (i : Nat) (h' : i < a.length), a[i].beq a[i] = true by
         simpa [List.isEqv_eq_decide]
@@ -129,7 +146,7 @@ public instance : DecidableEq TypeId := by
     induction id1 generalizing id2 with | _ id1 ih
     change ∀ arg ∈ id1.argIds, ∀ id, arg.beq id → arg = id at ih
     ext1
-    case name | universeLevels =>
+    case name /- | universeLevels -/ =>
       rw [TypeId.beq] at h_beq
       grind
     case argIds =>

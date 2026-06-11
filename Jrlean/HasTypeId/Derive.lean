@@ -12,7 +12,6 @@ namespace Jrlean
 
 open Lean Elab Command
 
-#print InductiveVal
 local instance : ToFormat ConstantInfo where
   format
     | .inductInfo .. => "inductInfo"
@@ -43,7 +42,7 @@ def derivingHandler : DerivingHandler := fun names => do
         throwError m!"not implemented for types with parameters"
       if inductiveVal.numIndices > 0 then
         throwError m!"not implemented for types with indices"
-      command name inductiveVal.levelParams
+      command name
     | .axiomInfo ..
     | .defnInfo ..
     | .thmInfo ..
@@ -54,27 +53,21 @@ def derivingHandler : DerivingHandler := fun names => do
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
   return true
 where
-  getStx (name : Name) (universeParams : List Name) : CoreM Command := do
+  getStx (name : Name) : CoreM Command := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
     let nameExpr : Term := quote name
-    let universeParams := universeParams.toArray.map fun p => mkIdent p
     `(
-      def $typeIdIdent {$universeParams* : Nat} : TypeId where
+      def $typeIdIdent : TypeId where
         name := $nameExpr
-        universeLevels := [$universeParams,*]
         argIds := [] -- TODO
-      axiom $axiomIdent.{$universeParams,*} : TypeId.OfType (@$typeIdIdent $universeParams*) (@$ident.{$universeParams,*})
+      axiom $axiomIdent : TypeId.OfType $typeIdIdent $ident
       instance : HasTypeId $ident where
         typeId := $typeIdIdent
         h_correct := $axiomIdent
     )
-  command (name : Name) levelParams : CommandElabM Unit := do
-    elabCommand <| ← liftCoreM <| getStx name levelParams
-
-#reduce show CoreM Syntax from `( hello.{u,v} )
-
-axiom h.{u} : Type u
+  command (name : Name) : CommandElabM Unit := do
+    elabCommand <| ← liftCoreM <| getStx name
 
 initialize registerDerivingHandler ``TypeId derivingHandler
