@@ -66,8 +66,8 @@ where
     `(
       def $typeIdIdent : TypeId where
         name := $nameExpr
-        universe_levels := $universeLevels
-        arg_ids := [] -- TODO
+        universeLevels := $universeLevels
+        argIds := [] -- TODO
       axiom $axiomIdent : TypeId.OfType $typeIdIdent $ident
       instance : HasTypeId $ident where
         typeId := $typeIdIdent

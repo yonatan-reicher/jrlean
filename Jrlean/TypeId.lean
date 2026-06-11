@@ -14,8 +14,8 @@ namespace Jrlean
 public structure TypeId where
   name : Lean.Name
   -- TODO: rename these two fields
-  universe_levels : List Nat
-  arg_ids : List TypeId
+  universeLevels : List Nat
+  argIds : List TypeId
   deriving Repr, Inhabited, Hashable, TypeName
 
 @[grind]
@@ -26,8 +26,8 @@ public def TypeId.size : TypeId → Nat
 public def TypeId.inductionOnChildren
   {P : TypeId → Sort}
   (id : TypeId)
-  (base : P { id with arg_ids := [] })
-  (step : ∀ h t, P { id with arg_ids := t } → P { id with arg_ids := h :: t })
+  (base : P { id with argIds := [] })
+  (step : ∀ h t, P { id with argIds := t } → P { id with argIds := h :: t })
 : P id := by
   rcases id with ⟨n, u, a⟩
   induction a
@@ -45,11 +45,11 @@ public theorem TypeId.size_gt_zero (id : TypeId) : id.size > 0 := by
 grind_pattern TypeId.size_gt_zero => id.size
 
 @[grind ., grind →]
-public theorem TypeId.size_lt_of_mem_arg_ids (id1 id2 : TypeId)
-: id2 ∈ id1.arg_ids → id2.size < id1.size := by
+public theorem TypeId.size_lt_of_mem_argIds (id1 id2 : TypeId)
+: id2 ∈ id1.argIds → id2.size < id1.size := by
   intro h_mem
-  rcases id1 with ⟨_, _, arg_ids⟩
-  induction arg_ids
+  rcases id1 with ⟨_, _, argIds⟩
+  induction argIds
   case nil => contradiction
   case cons head tail ih =>
     rw [size]
@@ -62,7 +62,7 @@ public theorem TypeId.size_lt_of_mem_arg_ids (id1 id2 : TypeId)
 @[induction_eliminator]
 public def TypeId.induction
   {P : TypeId → Sort}
-  (ind : ∀ id, (∀ arg ∈ id.arg_ids, P arg) → P id)
+  (ind : ∀ id, (∀ arg ∈ id.argIds, P arg) → P id)
 : ∀ id, P id := by
   /- rintro ⟨n, u, a⟩ -/
   /- let id : TypeId := ⟨n, u, a⟩ -/
@@ -73,18 +73,18 @@ public def TypeId.induction
     intro arg h_mem
     have : arg.size < n := by
       subst n
-      exact size_lt_of_mem_arg_ids id arg h_mem
+      exact size_lt_of_mem_argIds id arg h_mem
     exact ih arg.size this arg rfl
 
 @[expose]
 public def TypeId.beq (id1 id2 : TypeId) :=
   -- This is a property needed for proving termination
-  let P id := id ∈ id1.arg_ids ∨ id ∈ id2.arg_ids
+  let P id := id ∈ id1.argIds ∨ id ∈ id2.argIds
   id1.name == id2.name
-  && id1.universe_levels == id2.universe_levels
+  && id1.universeLevels == id2.universeLevels
   && List.isEqv
-    (id1.arg_ids.attachWith P (by grind))
-    (id2.arg_ids.attachWith P (by grind))
+    (id1.argIds.attachWith P (by grind))
+    (id2.argIds.attachWith P (by grind))
     (·.val.beq ·.val)
   termination_by max id1.size id2.size
   decreasing_by grind
@@ -128,37 +128,37 @@ public instance : DecidableEq TypeId := by
       grind
   · intro h_beq
     induction id1 generalizing id2 with | _ id1 ih
-    change ∀ arg ∈ id1.arg_ids, ∀ id, arg.beq id → arg = id at ih
+    change ∀ arg ∈ id1.argIds, ∀ id, arg.beq id → arg = id at ih
     ext1
-    case name | universe_levels =>
+    case name | universeLevels =>
       rw [TypeId.beq] at h_beq
       grind
-    case arg_ids =>
+    case argIds =>
       -- Now all that's left is proving the lists of children are equal, knowing
       -- that the ids are bequal.
-      have h_len_eq : id2.arg_ids.length = id1.arg_ids.length := by
+      have h_len_eq : id2.argIds.length = id1.argIds.length := by
         clear ih
         rw [TypeId.beq] at h_beq
         simp at h_beq
-        replace h_beq : id1.arg_ids.isEqv id2.arg_ids TypeId.beq := by grind
+        replace h_beq : id1.argIds.isEqv id2.argIds TypeId.beq := by grind
         rw [List.isEqv_eq_decide] at h_beq
         split at h_beq
         · symm; assumption
         · contradiction
       ext1 i
-      guard_target = id1.arg_ids[i]? = id2.arg_ids[i]?
-      if h_i : i < id1.arg_ids.length then
-        suffices id1.arg_ids[i] = id2.arg_ids[i] by grind
-        apply ih id1.arg_ids[i] (List.getElem_mem h_i) id2.arg_ids[i]
+      guard_target = id1.argIds[i]? = id2.argIds[i]?
+      if h_i : i < id1.argIds.length then
+        suffices id1.argIds[i] = id2.argIds[i] by grind
+        apply ih id1.argIds[i] (List.getElem_mem h_i) id2.argIds[i]
         clear ih
         -- Now all that's left is to show these two are bequal!
-        guard_target = (id1.arg_ids[i].beq id2.arg_ids[i]) = true
+        guard_target = (id1.argIds[i].beq id2.argIds[i]) = true
         rw [TypeId.beq] at h_beq; simp at h_beq
-        replace h_beq : id1.arg_ids.isEqv id2.arg_ids TypeId.beq := by grind
+        replace h_beq : id1.argIds.isEqv id2.argIds TypeId.beq := by grind
         rw [List.isEqv_eq_decide] at h_beq
         grind
       else
         -- Both sides are none
-        have : id1.arg_ids[i]? = none ∧ id2.arg_ids[i]? = none := by
+        have : id1.argIds[i]? = none ∧ id2.argIds[i]? = none := by
           grind only [List.getElem?_eq_none]
         rw [this.1, this.2]
