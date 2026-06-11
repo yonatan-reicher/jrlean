@@ -12,6 +12,7 @@ namespace Jrlean
 
 open Lean Elab Command
 
+#print InductiveVal
 local instance : ToFormat ConstantInfo where
   format
     | .inductInfo .. => "inductInfo"
@@ -37,7 +38,14 @@ def derivingHandler : DerivingHandler := fun names => do
     -- propositions are all equal).
     let constant_info ← getConstInfo name
     match constant_info with
-    | .inductInfo .. => pure ()
+    | .inductInfo inductiveVal => do
+      if inductiveVal.levelParams.length > 0 then
+        throwError m!"not implemented for types with universe parameters"
+      if inductiveVal.numParams > 0 then
+        throwError m!"not implemented for types with parameters"
+      if inductiveVal.numIndices > 0 then
+        throwError m!"not implemented for types with indices"
+      pure ()
     | .axiomInfo ..
     | .defnInfo ..
     | .thmInfo ..
