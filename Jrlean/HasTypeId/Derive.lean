@@ -39,13 +39,11 @@ def derivingHandler : DerivingHandler := fun names => do
     let constant_info ← getConstInfo name
     match constant_info with
     | .inductInfo inductiveVal => do
-      if inductiveVal.levelParams.length > 0 then
-        throwError m!"not implemented for types with universe parameters"
       if inductiveVal.numParams > 0 then
         throwError m!"not implemented for types with parameters"
       if inductiveVal.numIndices > 0 then
         throwError m!"not implemented for types with indices"
-      pure ()
+      command name inductiveVal.levelParams
     | .axiomInfo ..
     | .defnInfo ..
     | .thmInfo ..
@@ -54,26 +52,29 @@ def derivingHandler : DerivingHandler := fun names => do
     | .ctorInfo ..
     | .recInfo .. =>
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
-    command name
   return true
 where
-  getStx (name : Name) : CoreM Command :=
+  getStx (name : Name) (universeParams : List Name) : CoreM Command := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
     let nameExpr : Term := quote name
-    let universeLevels := quote ([] : List Nat) -- TODO
+    let universeParams := universeParams.toArray.map fun p => mkIdent p
     `(
-      def $typeIdIdent : TypeId where
+      def $typeIdIdent {$universeParams* : Nat} : TypeId where
         name := $nameExpr
-        universeLevels := $universeLevels
+        universeLevels := [$universeParams,*]
         argIds := [] -- TODO
-      axiom $axiomIdent : TypeId.OfType $typeIdIdent $ident
+      axiom $axiomIdent.{$universeParams,*} : TypeId.OfType (@$typeIdIdent $universeParams*) (@$ident.{$universeParams,*})
       instance : HasTypeId $ident where
         typeId := $typeIdIdent
         h_correct := $axiomIdent
     )
-  command (name : Name) : CommandElabM Unit := do
-    elabCommand <| ← liftCoreM <| getStx name
+  command (name : Name) levelParams : CommandElabM Unit := do
+    elabCommand <| ← liftCoreM <| getStx name levelParams
+
+#reduce show CoreM Syntax from `( hello.{u,v} )
+
+axiom h.{u} : Type u
 
 initialize registerDerivingHandler ``TypeId derivingHandler
