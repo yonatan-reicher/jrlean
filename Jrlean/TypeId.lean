@@ -76,6 +76,7 @@ public def TypeId.induction
       exact size_lt_of_mem_arg_ids id arg h_mem
     exact ih arg.size this arg rfl
 
+@[expose]
 public def TypeId.beq (id1 id2 : TypeId) :=
   -- This is a property needed for proving termination
   let P id := id ∈ id1.arg_ids ∨ id ∈ id2.arg_ids
@@ -99,13 +100,13 @@ private theorem List.zip_eq {α} (l : List α)
   case cons h t ih => simpa using ih
 
 @[simp]
-private theorem List.isEqv_attachWith {α} P (l1 l2 : List α) {h1 h2} r
+public theorem List.isEqv_attachWith {α} P (l1 l2 : List α) {h1 h2} r
 : List.isEqv (l1.attachWith P h1) (l2.attachWith P h2) (r ·.val ·.val)
 = l1.isEqv l2 r := by
   repeat rw [List.isEqv_eq_decide]
   simp only [List.length_attachWith, List.getElem_attachWith]
 
-instance : DecidableEq TypeId := by
+public instance : DecidableEq TypeId := by
   intro id1 id2
   -- the decidability is because of the equivalence to boolean equality
   suffices id1 = id2 ↔ id1.beq id2 from decidable_of_iff' (id1.beq id2) this

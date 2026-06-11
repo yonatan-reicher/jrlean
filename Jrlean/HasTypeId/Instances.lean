@@ -2,7 +2,7 @@ module
 
 public import Jrlean.TypeId
 public import Jrlean.HasTypeId.Basic
-import Jrlean.HasTypeId.Derive
+meta import Jrlean.HasTypeId.Derive
 
 namespace Jrlean
 

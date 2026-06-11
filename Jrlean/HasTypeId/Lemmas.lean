@@ -1,5 +1,6 @@
 module
 
+import Jrlean.TypeId
 import Jrlean.HasTypeId.Basic
 
 namespace Jrlean
@@ -12,14 +13,8 @@ equal. This relies on some assumptions:
 2. All types that implement `TypeName` have no universe parameters and no type
    parameters.
 -/
-axiom eq_iff_typeName_eq α β [HasTypeId α] [HasTypeId β]
+axiom eq_iff_typeId_eq α β [HasTypeId α] [HasTypeId β]
 : α = β ↔ typeId α = typeId β
 
-instance instDecidableEq α β [TypeName α] [TypeName β] : Decidable (α = β) :=
-  decidable_of_iff (typeName α = typeName β) (eq_iff_typeName_eq α β).symm
-
-#eval Nat = Int
-#reduce typeName Nat
-
-example : Dynamic := Dynamic.mk 0
-example : typeName Nat = `Nat := by decide
+instance {α β} [HasTypeId α] [HasTypeId β] : Decidable (α = β) :=
+  decidable_of_iff (typeId α = typeId β) (eq_iff_typeId_eq α β).symm
