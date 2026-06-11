@@ -1,6 +1,8 @@
 module
 
 import Lean.LibrarySuggestions.Default
+import Lean.Elab.Deriving
+import Lean.PrettyPrinter
 
 /-
 This module defines the `HasTypeId` class. This class associates a unique
@@ -19,6 +21,7 @@ namespace Jrlean
 @[ext]
 public structure TypeId where
   name : Lean.Name
+  -- TODO: rename these two fields
   universe_levels : List Nat
   arg_ids : List TypeId
   deriving Repr, Inhabited, Hashable, TypeName
@@ -175,8 +178,6 @@ public axiom TypeId.exists_ofType t : ∃ id, OfType id t
 public axiom TypeId.eq_of_ofType {t id1 id2}
 : OfType id1 t → OfType id2 t → id1 = id2
 
-unsafe def TypeId.trustMe {α} {id : TypeId} : id.OfType α := unsafeCast True
-
 @[ext]
 public class HasTypeId (α : Type) where
   typeId : TypeId
@@ -198,14 +199,79 @@ public instance {α} : Nonempty (HasTypeId α) := by
   have : id.OfType α := by apply choose_spec exists_id
   exact Nonempty.intro ⟨id, this⟩
 
-axiom TypeId.id_nat : OfType ⟨``Nat, [], []⟩ Nat
-instance : HasTypeId Nat where
-  typeId := ⟨``Nat, [], []⟩
-  h_correct := TypeId.id_nat
+/- In this following section, we describe a thing called a derive handler. This
+   will allow us to add `deriving TypeId` to types. -/
+section DeriveHandler
 
--- Unfortunately, Lean does not implement this class for almost any type, so we
--- have to do it ourselves. What a shame.
-deriving instance TypeName for Nat, Int, String, Bool
+open Lean Elab Command
+
+local instance : ToFormat ConstantInfo where
+  format
+    | .inductInfo .. => "inductInfo"
+    | .axiomInfo .. => "axiomInfo"
+    | .defnInfo .. => "defnInfo"
+    | .thmInfo .. => "thmInfo"
+    | .opaqueInfo .. => "opaqueInfo"
+    | .quotInfo .. => "quotInfo"
+    | .ctorInfo .. => "ctorInfo"
+    | .recInfo .. => "recInfo"
+
+/- A derive handler takes an array of names and elaborates commands that
+   introduce the instance for them. We also need to add axioms that assume the
+   behaviour we are adding is correct. This correctness cannot be proven inside
+   Lean. This is because you can't question Lean on the name of a type. -/
+def derivingHandler : DerivingHandler := fun names => do
+  for (name : Name) in names do
+    logInfo m!"Deriving TypeId for {name}"
+    -- This only makes sense for constants (constants can also refer to
+    -- functiosn and types) which are created by the command. This does not
+    -- make sense for definitions. It also doesn't make sense for things
+    -- which aren't types (example, different integer constants can be
+    -- equal, different type constants can't be equal, instances of
+    -- propositions are all equal).
+    let constant_info ← getConstInfo name
+    match constant_info with
+    | .inductInfo .. => pure ()
+    | .axiomInfo ..
+    | .defnInfo ..
+    | .thmInfo ..
+    | .opaqueInfo ..
+    | .quotInfo ..
+    | .ctorInfo ..
+    | .recInfo .. =>
+      throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
+    command name
+  return true
+where
+  getStx (name : Name) : CoreM Command :=
+    let ident : Ident := mkIdent name
+    let typeIdIdent := mkIdent (name ++ `typeId)
+    let axiomIdent := mkIdent (name ++ `typeId_ofType)
+    let nameExpr : Term := quote name
+    let universeLevels := quote ([] : List Nat) -- TODO
+    `(
+      def $typeIdIdent : TypeId where
+        name := $nameExpr
+        universe_levels := $universeLevels
+        arg_ids := [] -- TODO
+      axiom $axiomIdent : TypeId.OfType $typeIdIdent $ident
+      instance : HasTypeId $ident where
+        typeId := $typeIdIdent
+        h_correct := $axiomIdent
+    )
+  command (name : Name) : CommandElabM Unit := do
+    elabCommand <| ← liftCoreM <| getStx name
+
+initialize registerDerivingHandler ``TypeId derivingHandler
+
+/-- info: inductInfo -/
+#guard_msgs in #eval Std.ToFormat.format <$> getConstInfo ``Nat
+/-- info: defnInfo -/
+#guard_msgs in #eval Std.ToFormat.format <$> getConstInfo ``DerivingHandler
+
+end DeriveHandler
+
+deriving instance TypeId for Nat, Int, String, Bool, List
 
 /--
 Types that implement `TypeName` are equal if and only if their names are
