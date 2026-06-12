@@ -4,8 +4,8 @@ public import Jrlean.HasTypeId.Basic
 import Jrlean.TypeId
 import Lean.Elab.Deriving
 import Lean.Elab.Term.TermElabM
-import Lean.PrettyPrinter
 import Lean.LocalContext
+import Lean.PrettyPrinter
 
 namespace Jrlean
 
@@ -13,6 +13,7 @@ namespace Jrlean
    will allow us to add `deriving TypeId` to types. -/
 
 open Lean Elab Command Core
+open Lean.Parser.Term (bracketedBinder)
 
 local instance : ToFormat ConstantInfo where
   format
@@ -58,21 +59,59 @@ def derivingHandler : DerivingHandler := fun names => do
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
   return true
 where
-  getStx (name : Name) paramTypes : CommandElabM Unit := do
+  getStx (name : Name) paramTypes : CommandElabM Command := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
-    let nameExpr : Term := quote name
+    let instanceIdent := mkIdent (name ++ `instHasTypeId)
+    let nameTerm : Term := quote name
+    let paramTypes ← paramTypes.mapM (liftTermElabM ·.toSyntax)
+    let paramNames ← liftCoreM <| generateNames paramTypes.size `a
+    let paramBinders : Array (TSyntax ``bracketedBinder) ← paramNames.zip paramTypes |>.flatMapM (fun (n, t) => do
+      let n := mkIdent n
+      return #[
+        ← `(bracketedBinder| {$n : $t} ),
+        ← `(bracketedBinder| [HasTypeId $n] ),
+      ]
+    )
+    let paramTypeIdTerms ← paramNames.mapM (fun name =>
+      `(HasTypeId.typeId $(mkIdent name))
+    )
+    let paramIdents := paramNames.map mkIdent
     `(
-      def $typeIdIdent : TypeId where
-        name := $nameExpr
-        argIds := [] -- TODO
-      axiom $axiomIdent : TypeId.OfType $typeIdIdent $ident
-      instance : HasTypeId $ident where
+      def $typeIdIdent $paramBinders* : TypeId where
+        name := $nameTerm
+        argIds := [$paramTypeIdTerms,*] -- TODO
+      axiom $axiomIdent : TypeId.OfType ($typeIdIdent $paramIdents*) ($ident $paramIdents*)
+      instance $instanceIdent:ident $paramBinders:bracketedBinder* : HasTypeId ($ident $paramIdents*) where
         typeId := $typeIdIdent
         h_correct := $axiomIdent
     )
-  command (name : Name) : CommandElabM Unit := do
-    elabCommand <| ← liftCoreM <| getStx name
+  command (name : Name) paramTypes : CommandElabM Unit := do
+    elabCommand <| ← getStx name paramTypes
+  /-- Actually reads both the parameters and indices -/
+  readParameters (x : InductiveVal) : CommandElabM (Array Expr × Expr) := do
+    let mut params := #[]
+    let mut t := x.type
+    for _iParam in [0:x.numParams + x.numIndices] do
+      match x.type.arrow? with
+      | some (paramType, rest) => do
+        params := params.push paramType
+        t := rest
+      | none => throwError m!"not enough parameters in type {x.name}"
+    if not t.isSort then throwError m!"type {x.name} is not a sort"
+    return (params, t)
 
 initialize registerDerivingHandler ``TypeId derivingHandler
+
+/-
+  -- Declare the type id
+  addDecl (forceExpose := true) <| .defnDecl {
+    name := name ++ `typeId
+    levelParams := 
+    type := ← liftCoreM <| mkArrowN #[] (.const ``TypeId [])
+    value := sorry
+    hints := .regular 10
+    safety := .safe
+  }
+-/
