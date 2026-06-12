@@ -12,7 +12,7 @@ namespace Jrlean
 /- In this module, we describe a thing called a derive handler. This
    will allow us to add `deriving TypeId` to types. -/
 
-open Lean Elab Command
+open Lean Elab Command Core
 
 local instance : ToFormat ConstantInfo where
   format
