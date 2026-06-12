@@ -59,7 +59,7 @@ def derivingHandler : DerivingHandler := fun names => do
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
   return true
 where
-  getStx (name : Name) paramTypes : CommandElabM Command := do
+  command (name : Name) paramTypes : CommandElabM Unit := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
@@ -78,17 +78,24 @@ where
       `(HasTypeId.typeId $(mkIdent name))
     )
     let paramIdents := paramNames.map mkIdent
-    `(
-      def $typeIdIdent $paramBinders* : TypeId where
-        name := $nameTerm
-        argIds := [$paramTypeIdTerms,*] -- TODO
-      axiom $axiomIdent : TypeId.OfType ($typeIdIdent $paramIdents*) ($ident $paramIdents*)
-      instance $instanceIdent:ident $paramBinders:bracketedBinder* : HasTypeId ($ident $paramIdents*) where
-        typeId := $typeIdIdent
-        h_correct := $axiomIdent
-    )
-  command (name : Name) paramTypes : CommandElabM Unit := do
-    elabCommand <| ← getStx name paramTypes
+    -- Declare the type id
+    liftCoreM <| addDecl (forceExpose := true) <| .defnDecl {
+      name := name ++ `typeId
+      levelParams := [] -- TODO
+      type := ← liftCoreM <| mkArrowN #[] (.const ``TypeId []) -- TODO
+      value := .const ``true [] -- TODO
+      hints := .regular 10
+      safety := .safe
+    }
+    -- `(
+    --   def $typeIdIdent $paramBinders* : TypeId where
+    --     name := $nameTerm
+    --     argIds := [$paramTypeIdTerms,*] -- TODO
+    --   axiom $axiomIdent : TypeId.OfType ($typeIdIdent $paramIdents*) ($ident $paramIdents*)
+    --   instance $instanceIdent:ident $paramBinders:bracketedBinder* : HasTypeId ($ident $paramIdents*) where
+    --     typeId := $typeIdIdent
+    --     h_correct := $axiomIdent
+    -- )
   /-- Actually reads both the parameters and indices -/
   readParameters (x : InductiveVal) : CommandElabM (Array Expr × Expr) := do
     let mut params := #[]
@@ -103,15 +110,3 @@ where
     return (params, t)
 
 initialize registerDerivingHandler ``TypeId derivingHandler
-
-/-
-  -- Declare the type id
-  addDecl (forceExpose := true) <| .defnDecl {
-    name := name ++ `typeId
-    levelParams := 
-    type := ← liftCoreM <| mkArrowN #[] (.const ``TypeId [])
-    value := sorry
-    hints := .regular 10
-    safety := .safe
-  }
--/
