@@ -12,7 +12,7 @@ namespace Jrlean
 /- In this module, we describe a thing called a derive handler. This
    will allow us to add `deriving TypeId` to types. -/
 
-open Lean Elab Command Core
+open Lean Elab Command Core Meta
 open Lean.Parser.Term (bracketedBinder)
 
 local instance : ToFormat ConstantInfo where
@@ -65,7 +65,6 @@ where
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
     let instanceIdent := mkIdent (name ++ `instHasTypeId)
     let nameTerm : Term := quote name
-    let paramTypes ← paramTypes.mapM (liftTermElabM ·.toSyntax)
     let paramNames ← liftCoreM <| generateNames paramTypes.size `a
     let paramBinders : Array (TSyntax ``bracketedBinder) ← paramNames.zip paramTypes |>.flatMapM (fun (n, t) => do
       let n := mkIdent n
@@ -83,6 +82,11 @@ where
       name := name ++ `typeId
       levelParams := [] -- TODO
       type := ← liftCoreM <| mkArrowN #[] (.const ``TypeId []) -- TODO
+      value :=
+        ← liftTermElabM <| mkAppM ``TypeId.mk #[
+          toExpr name,
+          toExpr paramTypes,
+        ]
       value := .const ``true [] -- TODO
       hints := .regular 10
       safety := .safe
