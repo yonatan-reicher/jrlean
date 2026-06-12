@@ -25,6 +25,8 @@ local instance : ToFormat ConstantInfo where
     | .ctorInfo .. => "ctorInfo"
     | .recInfo .. => "recInfo"
 
+def _root_.Lean.Expr.toSyntax := Term.exprToSyntax
+
 /- A derive handler takes an array of names and elaborates commands that
    introduce the instance for them. We also need to add axioms that assume the
    behaviour we are adding is correct. This correctness cannot be proven inside
