@@ -46,11 +46,8 @@ def derivingHandler : DerivingHandler := fun names => do
     let constant_info ← getConstInfo name
     match constant_info with
     | .inductInfo inductiveVal => do
-      if inductiveVal.numParams > 0 then
-        throwError m!"not implemented for types with parameters"
-      if inductiveVal.numIndices > 0 then
-        throwError m!"not implemented for types with indices"
-      command name
+      let (params, ret) ← readParameters inductiveVal
+      command name params
     | .axiomInfo ..
     | .defnInfo ..
     | .thmInfo ..
@@ -61,7 +58,7 @@ def derivingHandler : DerivingHandler := fun names => do
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
   return true
 where
-  getStx (name : Name) : CoreM Command := do
+  getStx (name : Name) paramTypes : CommandElabM Unit := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
