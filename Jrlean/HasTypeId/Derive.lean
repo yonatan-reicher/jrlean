@@ -27,6 +27,10 @@ local instance : ToFormat ConstantInfo where
 
 def _root_.Lean.Expr.toSyntax := Term.exprToSyntax
 
+def generateNames (n : Nat) (suggestion : Name) : CoreM (Array Name) :=
+  Array.range n
+  |>.mapM fun _ => mkFreshUserName suggestion
+
 /- A derive handler takes an array of names and elaborates commands that
    introduce the instance for them. We also need to add axioms that assume the
    behaviour we are adding is correct. This correctness cannot be proven inside
