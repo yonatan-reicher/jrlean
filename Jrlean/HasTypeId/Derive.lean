@@ -3,7 +3,9 @@ module
 public import Jrlean.HasTypeId.Basic
 import Jrlean.TypeId
 import Lean.Elab.Deriving
+import Lean.Elab.Term.TermElabM
 import Lean.PrettyPrinter
+import Lean.LocalContext
 
 namespace Jrlean
 
