@@ -60,16 +60,16 @@ def derivingHandler : DerivingHandler := fun names => do
   return true
 where
   command (name : Name) (paramTypes : Array Expr) : CommandElabM Unit := do
-    let ident : Ident := mkIdent name
-    let typeIdIdent := mkIdent (name ++ `typeId)
-    let axiomIdent := mkIdent (name ++ `typeId_ofType)
-    let instanceIdent := mkIdent (name ++ `instHasTypeId)
-    let nameTerm : Term := quote name
+    /-
+    Does three things:
+    1. declares a function called _.typeId
+    2. declares an axiom _.typeId_ofType
+    3. declares an instance of HasTypeId
+    -/
     let paramNames ← liftCoreM <| generateNames paramTypes.size `a
     let paramTypeIdTerms ← paramNames.mapM (fun name =>
       `(HasTypeId.typeId $(mkIdent name))
     )
-    let paramIdents := paramNames.map mkIdent
     -- An expression that returns the type `TypeId`
     let typeIdType : Expr := .const ``TypeId []
     -- Declare the type id
