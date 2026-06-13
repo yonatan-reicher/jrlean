@@ -59,35 +59,33 @@ def derivingHandler : DerivingHandler := fun names => do
       throwError m!"cannot derive TypeId for constant '{name}' as it is not definition of a new unique type. ConstantInfo object: {constant_info}"
   return true
 where
-  command (name : Name) paramTypes : CommandElabM Unit := do
+  command (name : Name) (paramTypes : Array Expr) : CommandElabM Unit := do
     let ident : Ident := mkIdent name
     let typeIdIdent := mkIdent (name ++ `typeId)
     let axiomIdent := mkIdent (name ++ `typeId_ofType)
     let instanceIdent := mkIdent (name ++ `instHasTypeId)
     let nameTerm : Term := quote name
     let paramNames ← liftCoreM <| generateNames paramTypes.size `a
-    let paramBinders : Array (TSyntax ``bracketedBinder) ← paramNames.zip paramTypes |>.flatMapM (fun (n, t) => do
-      let n := mkIdent n
-      return #[
-        ← `(bracketedBinder| {$n : $t} ),
-        ← `(bracketedBinder| [HasTypeId $n] ),
-      ]
-    )
     let paramTypeIdTerms ← paramNames.mapM (fun name =>
       `(HasTypeId.typeId $(mkIdent name))
     )
     let paramIdents := paramNames.map mkIdent
+    -- An expression that returns the type `TypeId`
+    let typeIdType : Expr := .const ``TypeId []
     -- Declare the type id
     liftCoreM <| addDecl (forceExpose := true) <| .defnDecl {
       name := name ++ `typeId
       levelParams := [] -- TODO
-      type := ← liftCoreM <| mkArrowN #[] (.const ``TypeId []) -- TODO
-      value :=
-        ← liftTermElabM <| mkAppM ``TypeId.mk #[
+      type := ← liftCoreM <| mkArrowN paramTypes typeIdType -- TODO
+      value := ← liftTermElabM do
+        mkAppM ``TypeId.mk #[
+          -- First argument is the constant's name
           toExpr name,
-          toExpr paramTypes,
+          -- The rest of the arguments are the names of the arguments to the
+          -- constant.
+          ← mkListLit typeIdType <| ← paramTypes.toList.mapM fun t =>
+              mkAppM ``typeId #[t],
         ]
-      value := .const ``true [] -- TODO
       hints := .regular 10
       safety := .safe
     }
