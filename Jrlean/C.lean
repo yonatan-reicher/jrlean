@@ -1,178 +1,235 @@
 module
 
-public import Jrlean.C.Typ
-public import Jrlean.C.Expr
-public import Jrlean.C.Stmt
-public import Jrlean.C.Check
+public import Std.Data.HashMap
+import Jrlean.Coe
+import Jrlean.FiniteType
+open Std (HashMap)
 
---
--- public inductive Statement
---   | expr : Expr → Statement
---   | varDecl (t : Typ) (name : String) (init : Option Expr)
---
--- public structure TypingContext where
---   vars : HashMap String Typ
---
--- /- ========================================================================== -/
--- /-                                Definitions                                 -/
--- /- ========================================================================== -/
---
--- public instance Typ.instCoeSort : CoeSort Typ Type where coe := toType
---
--- @[simp, grind =]
--- theorem Typ.grind.coe : ∀ t : Typ, ↑t = t.toType := by intro; rfl
--- @[simp, grind =]
--- theorem Typ.grind.coeSort : ∀ t : Typ, CoeSort.coe t = t.toType := by intro; rfl
---
--- instance : Coe Nat BlockId where coe := id
--- instance : Coe BlockId Nat where coe := id
---
--- /- ========================================================================== -/
--- /-                                 More types                                 -/
--- /- ========================================================================== -/
---
--- public abbrev Value := (t : Typ) × t
---
--- /-- A memory block. -/
--- public structure Block where
---   array : Array (Value ⊕ Unaligned)
---
--- public structure State [CoeSort Typ Type] where
---   memory : HashMap BlockId Block
---   nextBlockId : BlockId
---   vars : HashMap String $ (t : Typ) × Option t
---
--- /- ========================================================================== -/
--- /-                              More Definitions                              -/
--- /- ========================================================================== -/
---
--- public instance : GetElem? State BlockId Block (fun s id => id ∈ s.memory) where
---   getElem? s id := s.memory[id]?
---   getElem s id h := s.memory[id]'h
---
--- public def State.deallocated : BlockId → State → Bool
---   | id, s => coeAs Nat id < coe s.nextBlockId && id ∉ s.memory
---
--- /- ========================================================================== -/
--- /-                              Pretty Printing                               -/
--- /- ========================================================================== -/
---
--- public instance Typ.instToString : ToString Typ where
---   toString := toStringImpl
--- where
---   toStringImpl
---     | .char => "char"
---     | .short => "short"
---     | .int => "int"
---     | .long => "long"
---     | .ptr t => s!"{toStringImpl t}*"
---
--- public instance Literal.instToString : ToString Literal where
---   toString
---     | .int i => toString i
---
--- public instance UnaryOp.instToString : ToString UnaryOp where
---   toString
---     | .add => "+"
---     | .neg => "-"
---
--- public instance BinaryOp.instToString : ToString BinaryOp where
---   toString
---     | .add => "+"
---     | .sub => "-"
---     | .mul => "*"
---     | .div => "/"
---
--- /- ========================================================================== -/
--- /-                                   Typing                                   -/
--- /- ========================================================================== -/
---
--- @[expose]
--- public def Literal.typ : Literal → Typ
---   | .int .. => .int
---
--- public def Expr.typ (c : TypingContext) : Expr → Except String Typ
---   | .lit l => pure l.typ
---   | .addressOf e => return .ptr $ ← e.typ c
---   | .uOp op e => do
---     let t ← e.typ c
---     match op with
---     | .add
---     | .neg =>
---       match t with
---       | .char | .short | .int | .long | .ptr _ => pure t
---   | .bOp op e1 e2 => do
---     let (t1, t2) := (← e1.typ c, ← e2.typ c)
---     match t1, t2 with
---     | .char, .char => pure .char
---     | .short, .short => pure .short
---     | .int, .int => pure .int
---     | .long, .long => pure .long
---     | .ptr _, .ptr _ => pure $ .ptr .char
---     | _, _ => throw s!"cannot apply {op} to {t1} and {t2}"
---
---
--- /- ========================================================================== -/
--- /-                                 Evalutaion                                 -/
--- /- ========================================================================== -/
---
--- public def newBlock : Block → StateM State BlockId
---   | b => do
---     let s ← get
---     let id := s.nextBlockId
---     modify fun s => { s with
---       memory := s.memory.insert id b
---       nextBlockId := id.succ
---     }
---     pure id
---
--- public def Literal.value : (l : Literal) → l.typ
---   | .int i => i
---
--- instance Literal.instCoeDep {l} : CoeDep Literal l l.typ where coe := l.value
---
--- public def Expr.address: Expr → StateT TypingContext Option Address
---   | .lit ..
---   | .addressOf ..
---   | .uOp ..
---   | .bOp .. => failure
---
--- public def Address.read (s : State) (t : Typ) : Address → Except String t
---   | { blockId, offset } => do
---     match s[blockId]? with
---     | none =>
---       throw $ if s.deallocated blockId then
---         "memory block deallocated"
---       else
---         "invalid memory block"
---     | some b =>
---       match b.array[offset]? with
---       | none => throw "out of bounds access"
---       | some (.inr .unaligned) => throw "unaligned access"
---       | some (.inl v) =>
---         if h : v.1 = t then pure $ cast v.2
---         else throw s!"type mismatch: expected {t}, got {v.1}"
---
--- public def Expr.eval : Expr → StateT State (Except Unit) Value
---   | .lit l => pure ⟨l.typ, l⟩
---   | .addressOf e => do
---     let t := e.typ (← get)
---     match e.address (← get) with
---     | some (a, c) =>
---       set c
---       let some v := c.readAddress a t | throw ()
---       return ⟨t, v⟩
---     | none => throw ()
---   | _ => sorry
---
--- public def Statement.eval : Statement → StateT Context (Except Unit) Unit
---   | .expr e => do let _ ← e.eval
---   | .varDecl _t name e => do
---     let v ← match e with
---       | none => throw ()
---       | some e => e.eval
---     -- TODO: here should go a coersion!
---     modify fun c => { c with vars := c.vars.insert name ⟨v.1, some v.2⟩ }
---
--- public abbrev Statement.eval' : Statement → Context → Except Unit Context
---   | s, c => s.eval c |>.map (·.2)
+namespace Jrlean.C
+
+/- ========================================================================== -/
+/-                                   Types                                    -/
+/- ========================================================================== -/
+
+/-- A representation of a C type. Called Typ instead of Type to avoid confusion
+  with Lean's Type. -/
+public inductive Typ
+  | char
+  | short
+  | int
+  | long
+  | ptr : Typ → Typ
+  deriving DecidableEq
+
+public structure Unaligned where
+  -- Weird syntax: This is an explicit constructor name (Instead of default
+  -- `.mk`)
+  unaligned ::
+
+@[expose]
+public def BlockId := Nat
+deriving instance DecidableEq, Hashable, Repr for BlockId
+
+public structure Address where
+  blockId : BlockId
+  offset : Nat
+
+public inductive Literal
+  | int : Int32 → Literal
+
+public inductive UnaryOp
+  | add
+  | neg
+  deriving DecidableEq
+
+public inductive BinaryOp
+  | add
+  | sub
+  | mul
+  | div
+  deriving DecidableEq
+
+public inductive Expr
+  | lit : Literal → Expr
+  | uOp : UnaryOp → Expr → Expr
+  | bOp : BinaryOp → Expr → Expr → Expr
+  | addressOf : Expr → Expr
+
+public inductive Statement
+  | expr : Expr → Statement
+  | varDecl (t : Typ) (name : String) (init : Option Expr)
+
+public structure TypingContext where
+  vars : HashMap String Typ
+
+/- ========================================================================== -/
+/-                                Definitions                                 -/
+/- ========================================================================== -/
+
+@[expose, reducible]
+public def Typ.toType : Typ → Type
+  | .char => Int8
+  | .short => Int16
+  | .int => Int32
+  | .long => Int64
+  | .ptr _ => Address
+
+public instance Typ.instCoeSort : CoeSort Typ Type where coe := toType
+
+@[simp, grind =]
+theorem Typ.grind.coe : ∀ t : Typ, ↑t = t.toType := by intro; rfl
+@[simp, grind =]
+theorem Typ.grind.coeSort : ∀ t : Typ, CoeSort.coe t = t.toType := by intro; rfl
+
+instance : Coe Nat BlockId where coe := id
+instance : Coe BlockId Nat where coe := id
+
+/- ========================================================================== -/
+/-                                 More types                                 -/
+/- ========================================================================== -/
+
+public abbrev Value := (t : Typ) × t
+
+/-- A memory block. -/
+public structure Block where
+  array : Array (Value ⊕ Unaligned)
+
+public structure State [CoeSort Typ Type] where
+  memory : HashMap BlockId Block
+  nextBlockId : BlockId
+  vars : HashMap String $ (t : Typ) × Option t
+
+/- ========================================================================== -/
+/-                              More Definitions                              -/
+/- ========================================================================== -/
+
+public instance : GetElem? State BlockId Block (fun s id => id ∈ s.memory) where
+  getElem? s id := s.memory[id]?
+  getElem s id h := s.memory[id]'h
+
+public def State.deallocated : BlockId → State → Bool
+  | id, s => coeAs Nat id < coe s.nextBlockId && id ∉ s.memory
+
+/- ========================================================================== -/
+/-                              Pretty Printing                               -/
+/- ========================================================================== -/
+
+public instance Typ.instToString : ToString Typ where
+  toString := toStringImpl
+where
+  toStringImpl
+    | .char => "char"
+    | .short => "short"
+    | .int => "int"
+    | .long => "long"
+    | .ptr t => s!"{toStringImpl t}*"
+
+public instance Literal.instToString : ToString Literal where
+  toString
+    | .int i => toString i
+
+public instance UnaryOp.instToString : ToString UnaryOp where
+  toString
+    | .add => "+"
+    | .neg => "-"
+
+public instance BinaryOp.instToString : ToString BinaryOp where
+  toString
+    | .add => "+"
+    | .sub => "-"
+    | .mul => "*"
+    | .div => "/"
+
+/- ========================================================================== -/
+/-                                   Typing                                   -/
+/- ========================================================================== -/
+
+@[expose]
+public def Literal.typ : Literal → Typ
+  | .int .. => .int
+
+public def Expr.typ (c : TypingContext) : Expr → Except String Typ
+  | .lit l => pure l.typ
+  | .addressOf e => return .ptr $ ← e.typ c
+  | .uOp op e => do
+    let t ← e.typ c
+    match op with
+    | .add
+    | .neg =>
+      match t with
+      | .char | .short | .int | .long | .ptr _ => pure t
+  | .bOp op e1 e2 => do
+    let (t1, t2) := (← e1.typ c, ← e2.typ c)
+    match t1, t2 with
+    | .char, .char => pure .char
+    | .short, .short => pure .short
+    | .int, .int => pure .int
+    | .long, .long => pure .long
+    | .ptr _, .ptr _ => pure $ .ptr .char
+    | _, _ => throw s!"cannot apply {op} to {t1} and {t2}"
+
+
+/- ========================================================================== -/
+/-                                 Evalutaion                                 -/
+/- ========================================================================== -/
+
+public def newBlock : Block → StateM State BlockId
+  | b => do
+    let s ← get
+    let id := s.nextBlockId
+    modify fun s => { s with
+      memory := s.memory.insert id b
+      nextBlockId := id.succ
+    }
+    pure id
+
+public def Literal.value : (l : Literal) → l.typ
+  | .int i => i
+
+instance Literal.instCoeDep {l} : CoeDep Literal l l.typ where coe := l.value
+
+public def Expr.address: Expr → StateT TypingContext Option Address
+  | .lit ..
+  | .addressOf ..
+  | .uOp ..
+  | .bOp .. => failure
+
+public def Address.read (s : State) (t : Typ) : Address → Except String t
+  | { blockId, offset } => do
+    match s[blockId]? with
+    | none =>
+      throw $ if s.deallocated blockId then
+        "memory block deallocated"
+      else
+        "invalid memory block"
+    | some b =>
+      match b.array[offset]? with
+      | none => throw "out of bounds access"
+      | some (.inr .unaligned) => throw "unaligned access"
+      | some (.inl v) =>
+        if h : v.1 = t then pure $ cast v.2
+        else throw s!"type mismatch: expected {t}, got {v.1}"
+
+public def Expr.eval : Expr → StateT State (Except Unit) Value
+  | .lit l => pure ⟨l.typ, l⟩
+  | .addressOf e => do
+    let t := e.typ (← get)
+    match e.address (← get) with
+    | some (a, c) =>
+      set c
+      let some v := c.readAddress a t | throw ()
+      return ⟨t, v⟩
+    | none => throw ()
+  | _ => sorry
+
+public def Statement.eval : Statement → StateT Context (Except Unit) Unit
+  | .expr e => do let _ ← e.eval
+  | .varDecl _t name e => do
+    let v ← match e with
+      | none => throw ()
+      | some e => e.eval
+    -- TODO: here should go a coersion!
+    modify fun c => { c with vars := c.vars.insert name ⟨v.1, some v.2⟩ }
+
+public abbrev Statement.eval' : Statement → Context → Except Unit Context
+  | s, c => s.eval c |>.map (·.2)
