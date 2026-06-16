@@ -11,8 +11,8 @@ public opaque TypeId.OfType : TypeId → Sort u → Prop
 /-- Each type has an id. -/
 public axiom TypeId.exists_ofType t : ∃ id, OfType id t
 /-- Each type's id is unique. -/
-public axiom TypeId.eq_of_ofType {t id1 id2}
-: OfType id1 t → OfType id2 t → id1 = id2
+public axiom TypeId.eq_iff_typeId_eq {α β id1 id2}
+(h1 : OfType id1 α) (h2 : OfType id2 β) : α = β ↔ id1 = id2
 
 @[ext]
 public class HasTypeId (α : Sort u) where
@@ -21,14 +21,6 @@ public class HasTypeId (α : Sort u) where
 
 export HasTypeId (typeId)
 
-/-- All instances are equal. -/
-public theorem HasTypeId.unique (α : Sort u)
-: ∀ (inst1 inst2 : HasTypeId α), inst1 = inst2 := by
-  rintro ⟨id1, h1⟩ ⟨id2, h2⟩
-  ext1
-  show id1 = id2
-  exact TypeId.eq_of_ofType h1 h2
-
 /-- Every type can have an instance of `HasTypeId` constructed for it. -/
 public instance {α} : Nonempty (HasTypeId α) := by
   open Classical in
@@ -36,4 +28,3 @@ public instance {α} : Nonempty (HasTypeId α) := by
   let id := choose exists_id
   have : id.OfType α := by apply choose_spec exists_id
   exact Nonempty.intro ⟨id, this⟩
-
