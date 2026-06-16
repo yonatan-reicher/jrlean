@@ -2,6 +2,7 @@ module
 
 meta import Lean
 public import Lean.Elab.Command
+public import Jrlean.HasTypeId
 
 /-
 An implementation of Algebraic Effects.
@@ -28,17 +29,9 @@ private abbrev Set (t : Type u) := t → Prop
 
 /-- An effect is a thing which passes messages to a handler, which then
     translates them into actions. -/
-class Effect e extends TypeName e where
+class Effect e extends HasTypeId e where
   Output : Type
-
-instance (a b : Type) [Effect a] [Effect b] : Decidable (a = b) := by
-  open TypeName (typeName) in
-  constructor
-  intro a_eq_b
-  if h_name_eq : typeName a = typeName b then
-    sorry
-  else
-    sorry
+  [instHasTypeIdOutput : HasTypeId Output]
 
 open Lean.Parser.Term in
 /--
@@ -81,7 +74,7 @@ elab_rules : command
       $mods:declModifiers
       structure $declId $params* where
         $[$binders]*
-      deriving TypeName, DecidableEq
+      deriving HasTypeId, DecidableEq
       instance : Effect ($declId $params*) := .mk
         (Output := $(output.getD (mkIdent ``Unit)))
     )
@@ -141,7 +134,7 @@ instance {m err} [MonadExcept err m] [Inhabited err]
 : EffectResult Crash m where
   translate _msg _cont := throw default
 
-def div (x y : Nat) : Effects (fun e => e = Crash) Nat := do
+def div (x y : Nat) : Effects (fun e => e.fst = Crash) Nat := do
   if y == 0 then
     let empty ← .effect Crash.mk
     empty.elim
@@ -150,7 +143,7 @@ def div (x y : Nat) : Effects (fun e => e = Crash) Nat := do
 
 #eval show Option Nat from
   Effects.run
-    (effects := (· = crash))
+    (effects := (·.fst = Crash))
     (div 10 0)
     $ by
       intros e h_eq
