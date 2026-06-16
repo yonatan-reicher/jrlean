@@ -7,14 +7,13 @@ public import Jrlean.HasTypeId
 /-
 An implementation of Algebraic Effects.
 This is a monad called Effects which is indexed by a set of possible effects.
-The effects themselves are types that implement the Effect typeclass, and they
+The effects themselves are structures that have input and output types, and they
 can be defined using the `effect` command. Effects can be sent and then handled
 by handlers, which react accordingly and may alter the control flow.
 
-Actually, I had trouble implementing the concept of an effect handler because it
-required predicating on type equality, and we cannot do that. For now, instead
-of effect handlers, the effects themselves define generic translations to
-monads.
+TODO: Implement the concept of an effect handler.
+For now, instead of effect handlers, the effects themselves define generic
+translations to monads.
 -/
 
 namespace Jrlean
@@ -29,11 +28,33 @@ private abbrev Set (t : Type u) := t → Prop
 
 /-- An effect is a thing which passes messages to a handler, which then
     translates them into actions. -/
-class Effect e extends HasTypeId e where
+@[ext]
+structure Effect where
+  name : Lean.Name
+  Input : Type
+  [instHasTypeIdInput : HasTypeId Input]
   Output : Type
   [instHasTypeIdOutput : HasTypeId Output]
 
-open Lean.Parser.Term in
+instance : DecidableEq Effect := by
+  rintro ⟨n1, I1, O1⟩
+  rintro ⟨n2, I2, O2⟩
+  if h_eq : n1 = n2 ∧ I1 = I2 ∧ O1 = O2 then
+    have ⟨h_eq_n, h_eq_I, h_eq_O⟩ := h_eq
+    subst n2 I2 O2
+    simp only [Effect.mk.injEq, heq_eq_eq, HasTypeId.simp.eq_to_true, and_self]
+    infer_instance
+  else
+    apply Decidable.isFalse
+    grind only
+
+section Meta
+
+open Lean Elab Term Command
+open Lean.Parser.Term
+
+public syntax effectField := ident " := " term
+
 /--
 The syntax for defining effects.
 
@@ -43,63 +64,82 @@ effect crash ↦ Empty where
   reason : String
 ```
 -/
-syntax
+public syntax effectDecl :=
   withPosition(declModifiers)
-  "effect " ident (ident <|> hole <|> bracketedBinder)*
-  ( " ↦ " term )?
-  ( " where "
-    (binderDefault <|> bracketedBinder)*
-  )?
-  : command
+  "effect " ident (ident <|> hole <|> bracketedBinder)* " where "
+    manyIndent(effectField)
 
-open Lean Elab Parser Term Command in
+syntax effectDecl : command
+
+structure EffectBuilderState where
+  input : List Term
+  output : List Term
+  badFields : List (Name × Term)
+
 -- Semantics of the `effect` command.
 elab_rules : command
   | `(command|
     $mods:declModifiers
-    effect $declId $params:ident*
-    $[↦ $output]?
-    $[where $binders:binderDefault*]?
+    effect $declId $params:ident* where
+      $fields*
   ) => do
-    let binders := binders.getD #[]
-    let binders ← binders.mapM (fun b =>
-      match b with
-      | `(bracketedBinder| ($binder:ident : $type:term)) =>
-        `(structSimpleBinder| $binder:ident : $type)
-      | _ => do
-        throwError m!"Cannot handle binder syntax")
-     -- Check that the name is not already used.
-    -- Translate to syntax and run.
+    let s : EffectBuilderState := {
+      input := []
+      output := []
+      badFields := []
+    }
+    let s ← fields.foldlM (init := s) fun s (field : TSyntax ``effectField) => do
+      match field with
+      | `(effectField| $name:ident := $t:term) =>
+        let name := name.getId
+        if name == .mkSimple "Input" then
+          pure { s with input := t :: s.input }
+        else if name == .mkSimple "Output" then
+          pure { s with output := t :: s.output }
+        else
+          pure { s with badFields := (name, t) :: s.badFields }
+      | _ => panic! "invalid syntax in effect fields: {field}"
+    let input ←
+      match s.input with
+      | [t] => pure t
+      | [] => throwError m!"Effect '{declId}' is missing an 'Input' field."
+      | _ => throwError m!"Effect '{declId}' has multiple 'Input' fields."
+    let output ←
+      match s.output with
+      | [t] => pure t
+      | [] => throwError m!"Effect '{declId}' is missing an 'Output' field."
+      | _ => throwError m!"Effect '{declId}' has multiple 'Output' fields."
+    for (name, _) in s.badFields do
+      throwError m!"Effect '{declId}' has an unrecognized field '{name}'."
     elabCommand <| ← `(
       $mods:declModifiers
-      structure $declId $params* where
-        $[$binders]*
-      deriving HasTypeId, DecidableEq
-      instance : Effect ($declId $params*) := .mk
-        (Output := $(output.getD (mkIdent ``Unit)))
+      def $declId $params* : Effect where
+        name := $(quote declId.getId)
+        Input := $input
+        Output := $output
     )
+
+end Meta
 
 /-- Instanced for monads and effects that can be translated into those monads.
 -/
-class EffectResult e [Effect e] (result : Type → Type u) where
-  translate {α} : e → (Effect.Output e → result α) → result α
+class EffectResult (e : Effect) (result : Type → Type u) where
+  translate {α} : e.Input → (Effect.Output e → result α) → result α
 
 /-- The effects monad has the ability to apply send effects to handlers. -/
-inductive Effects (effects : Set (Sigma Effect)) (a : Type) where
+inductive Effects (effects : Set Effect) (a : Type) where
   | pure : a → Effects effects a
   | effectThen
-    e
-    [instEffect : Effect e]
-    (inp : e)
+    (e : Effect)
+    (inp : e.Input)
     (cont : Effect.Output e → Effects effects a)
-    (h_effect : effects ⟨e, instEffect⟩ := by grind)
-    : Effects effects a
+    (h_effect : effects e := by grind)
 
 def Effects.effect
-  {effects e}
-  [instEffect : Effect e]
-  (inp : e)
-  (h_effect : effects ⟨e, instEffect⟩ := by grind)
+  {effects}
+  (e : Effect)
+  (inp : e.Input)
+  (h_effect : effects e := by grind)
   : Effects effects (Effect.Output e) :=
   .effectThen e inp .pure
 
@@ -110,23 +150,25 @@ where
   bind {α β} (x : Effects effects α) (f : α → Effects effects β) :=
     match x with
     | .pure a => f a
-    | Effects.effectThen e inp y h => .effectThen e inp fun out => bind (y out) f
+    | .effectThen e inp y h => .effectThen e inp fun out => bind (y out) f
 
 def Effects.run
   {α}
-  {effects : Set (Sigma Effect)}
+  {effects : Set Effect}
   {Result} [Pure Result]
   (x : Effects effects α)
-  (h_effect_result : ∀ e, effects e → @EffectResult e.1 e.2 Result := by simp_all)
+  (h_effect_result : ∀ e, effects e → EffectResult e Result := by simp_all)
   : Result α :=
   match x with
   | .pure a => Pure.pure a
   | Effects.effectThen e inp cont h =>
-    have : EffectResult e Result := h_effect_result ⟨e, inferInstance⟩ h
+    have : EffectResult e Result := h_effect_result e h
     EffectResult.translate inp fun out => run (cont out) h_effect_result
 
 /-- The crashing effect. -/
-effect Crash ↦ Empty
+effect Crash where
+  Input := Unit
+  Output := Empty
 
 -- Any monad that can throw an error which has a default value can run crash
 -- effects.
@@ -134,16 +176,16 @@ instance {m err} [MonadExcept err m] [Inhabited err]
 : EffectResult Crash m where
   translate _msg _cont := throw default
 
-def div (x y : Nat) : Effects (fun e => e.fst = Crash) Nat := do
+def div (x y : Nat) : Effects (fun e => e = Crash) Nat := do
   if y == 0 then
-    let empty ← .effect Crash.mk
+    let empty ← .effect Crash ()
     empty.elim
   else
     return (x / y)
 
 #eval show Option Nat from
   Effects.run
-    (effects := (·.fst = Crash))
+    (effects := (· = Crash))
     (div 10 0)
     $ by
       intros e h_eq
@@ -152,7 +194,7 @@ def div (x y : Nat) : Effects (fun e => e.fst = Crash) Nat := do
 
 #eval show IO Nat from
   Effects.run
-    (effects := (· = crash))
+    (effects := (· = Crash))
     (div 10 5)
     $ by
       intros e h_eq
@@ -160,8 +202,7 @@ def div (x y : Nat) : Effects (fun e => e.fst = Crash) Nat := do
       infer_instance
 
 /-- Print a value. -/
-def Print : Effect where
-  name := `Print
+effect Print where
   Input := String
   Output := Unit
 
@@ -172,16 +213,16 @@ instance : EffectResult Print IO where
 
 #eval show IO Nat from
   Effects.run
-    (effects := fun e => e = crash ∨ e = Print)
+    (effects := fun e => e = Crash ∨ e = Print)
     (do
       .effect Print "Hello, world!"
       .effect Print "This is an effect handler example."
-      let empty ← .effect crash ()
+      let empty ← .effect Crash ()
       empty.elim)
     $ by
       intros e h
-      if h_name_eq_crash : e.name = crash.name then
-        have : e = crash := by grind [crash, Print]
+      if h_name_eq_crash : e.name = Crash.name then
+        have : e = Crash := by grind [Crash, Print]
         subst_vars
         infer_instance
       else
@@ -190,14 +231,15 @@ instance : EffectResult Print IO where
         infer_instance
 
 @[reducible]
-effect ask (Input Output : Type) where
+effect ask (Input Output : Type) [HasTypeId Input] [HasTypeId Output] where
   Input := Input
   Output := Output
 
-instance {Inp Out m} [Monad m] [MonadReader (Inp → Out) m] : EffectResult (ask Inp Out) m where
-    translate inp cont := do
-      let out := (← read) inp
-      cont out
+instance {Inp Out m} [HasTypeId Inp] [HasTypeId Out] [Monad m]
+[MonadReader (Inp → Out) m] : EffectResult (ask Inp Out) m where
+  translate inp cont := do
+    let out := (← read) inp
+    cont out
 
 #eval (ReaderT.run (m := Id) · fun x => x + 1)
   <| Effects.run

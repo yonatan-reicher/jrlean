@@ -13,7 +13,7 @@ equal. This relies on some assumptions:
 2. All types that implement `TypeName` have no universe parameters and no type
    parameters.
 -/
-theorem eq_iff_typeId_eq {α β} [i1 : HasTypeId α] [i2 : HasTypeId β]
+public theorem eq_iff_typeId_eq {α β} [i1 : HasTypeId α] [i2 : HasTypeId β]
 : α = β ↔ typeId α = typeId β := by
   apply Iff.intro
   · intro h_eq
@@ -29,20 +29,32 @@ theorem eq_iff_typeId_eq {α β} [i1 : HasTypeId α] [i2 : HasTypeId β]
     · rw [h_typeId_eq]; exact i2.h_correct
 
 @[grind →]
-theorem eq_of_typeId_eq {α β} [HasTypeId α] [HasTypeId β]
+public theorem eq_of_typeId_eq {α β} [HasTypeId α] [HasTypeId β]
 (h_typeId_eq : typeId α = typeId β) : α = β := by
   grind [eq_iff_typeId_eq]
 
 @[grind =]
-theorem typeId_eq_of_eq {α} [i1 : HasTypeId α] [i2 : HasTypeId α]
+public theorem typeId_eq_of_eq {α} [i1 : HasTypeId α] [i2 : HasTypeId α]
  : @typeId α i1 = @typeId α i2 := by
   grind [eq_iff_typeId_eq]
 
 /-- All instances are equal. -/
-public theorem HasTypeId.unique {α : Sort u}
+public theorem HasTypeId.all_eq {α : Sort u}
 (inst1 inst2 : HasTypeId α) : inst1 = inst2 := by
   ext1
   grind
 
-instance {α β} [HasTypeId α] [HasTypeId β] : Decidable (α = β) :=
+@[simp]
+public theorem HasTypeId.simp.eq_to_true
+{α} (i1 i2 : HasTypeId α)
+: (i1 = i2) = True := by
+  apply eq_true
+  exact all_eq i1 i2
+
+public instance {α} : DecidableEq (HasTypeId α) := by
+  intro i1 i2
+  simp only [HasTypeId.simp.eq_to_true]
+  infer_instance
+
+public instance {α β} [HasTypeId α] [HasTypeId β] : Decidable (α = β) :=
   decidable_of_iff' (typeId α = typeId β) eq_iff_typeId_eq
