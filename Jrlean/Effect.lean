@@ -1,8 +1,8 @@
 module
 
 meta import Lean
-public import Lean.Elab.Command
 public import Jrlean.HasTypeId
+public import Lean.Elab.Command
 
 /-
 An implementation of Algebraic Effects.
