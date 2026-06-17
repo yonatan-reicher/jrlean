@@ -1,11 +1,12 @@
 module
 
+import Jrlean.CollectionLemmas
 import Std
 meta import Lean
-import Jrlean.CollectionLemmas
 public import Jrlean.HasTypeId
 public import Jrlean.TypeWithId
 public import Lean.Elab.Command
+public meta import Jrlean.HasTypeId
 
 /-
 An implementation of Algebraic Effects.
@@ -176,6 +177,8 @@ def div (x y : Nat) : Effects {Crash} Nat := do
   else
     return (x / y)
 
+/-- info: none -/
+#guard_msgs in
 #eval show Option Nat from
   Effects.run
     (effects := {Crash})
@@ -186,6 +189,8 @@ def div (x y : Nat) : Effects {Crash} Nat := do
       subst e
       infer_instance
 
+/-- info: 2 -/
+#guard_msgs in
 #eval show IO Nat from
   Effects.run
     (effects := {Crash})
@@ -206,6 +211,13 @@ instance : EffectResult Print IO where
     IO.println $ show String from msg
     cont ()
 
+/--
+info: Hello, world!
+This is an effect handler example.
+---
+error: (`Inhabited.default` for `IO.Error`)
+-/
+#guard_msgs in
 #eval show IO Nat from
   Effects.run
     (effects := {Print, Crash})
@@ -236,6 +248,8 @@ instance {Inp Out m} [HasTypeId Inp] [HasTypeId Out] [Monad m]
     let out := (← read) inp
     cont out
 
+/-- info: 100 -/
+#guard_msgs in
 #eval (ReaderT.run (m := Id) · fun x => x + 1)
   <| Effects.run
     (effects := {Ask Nat Nat})

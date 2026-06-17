@@ -1,3 +1,5 @@
+module
+
 class IMonad (m : (Index : Type) → (α : Index → Type) → Type) where
   pure {Index} {α : Index → Type} : (∀ i, α i) → m Index α
   bind {I} {α : I → Type} {β : I → I → Type}

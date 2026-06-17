@@ -102,8 +102,8 @@ where
     let levelParams := ind.levelParams.filter (fun l =>
       paramTypes.any (·.containsLevelParam l))
     declareTypeId ind paramNamesWithTypes levelParams
-    declareAxiom ind paramNamesWithTypes levelParams
-    declareInstance ind paramNamesWithTypes levelParams
+    declareAxiom ind paramNamesWithTypes
+    declareInstance ind paramNamesWithTypes
     liftCoreM <| compileDecls #[
       ind.name ++ `typeId,
       ind.name ++ `typeId_ofType,
@@ -156,7 +156,7 @@ where
       hints := .regular 10
       safety := .safe
     }
-  declareAxiom ind params levelParams := do
+  declareAxiom ind params := do
     liftCoreM <| addDecl <| .axiomDecl {
       name := ind.name ++ `typeId_ofType
       levelParams := ind.levelParams
@@ -171,7 +171,7 @@ where
           ]
       isUnsafe := false
     }
-  declareInstance ind params levelParams := do
+  declareInstance ind params := do
     liftCoreM <| addDecl (forceExpose := true) <| .defnDecl {
       name := ind.name ++ `instHasTypeId
       levelParams := ind.levelParams
