@@ -1,5 +1,8 @@
 module
+public import Jrlean.CollectionLemmas
 public import Jrlean.UniqueName
+public import Jrlean.HasTypeId
+public import Jrlean.TypeWithId
 public import Jrlean.Coe
 public import Jrlean.FiniteType
 public import Jrlean.DMonad

@@ -1,7 +1,10 @@
 module
 
+import Std
 meta import Lean
+import Jrlean.CollectionLemmas
 public import Jrlean.HasTypeId
+public import Jrlean.TypeWithId
 public import Lean.Elab.Command
 
 /-
@@ -19,7 +22,7 @@ translations to monads.
 namespace Jrlean
 
 -- Let's implement a set type as a predicate instead of importing mathlib...
-private abbrev Set (t : Type u) := t → Prop
+private abbrev Set (t : Type u) [BEq t] [Hashable t] := Std.ExtHashSet t
 -- private instance {t : Type u} : CoeSort (Set t) (Type u) where
 --   coe s := { x // s x }
 -- set_option checkBinderAnnotations false in
@@ -31,22 +34,12 @@ private abbrev Set (t : Type u) := t → Prop
 @[ext]
 structure Effect where
   name : Lean.Name
-  Input : Type
-  [instHasTypeIdInput : HasTypeId Input]
-  Output : Type
-  [instHasTypeIdOutput : HasTypeId Output]
+  InputWithId : TypeWithId
+  OutputWithId : TypeWithId
+  deriving DecidableEq, Hashable, Repr
 
-instance : DecidableEq Effect := by
-  rintro ⟨n1, I1, O1⟩
-  rintro ⟨n2, I2, O2⟩
-  if h_eq : n1 = n2 ∧ I1 = I2 ∧ O1 = O2 then
-    have ⟨h_eq_n, h_eq_I, h_eq_O⟩ := h_eq
-    subst n2 I2 O2
-    simp only [Effect.mk.injEq, heq_eq_eq, HasTypeId.simp.eq_to_true, and_self]
-    infer_instance
-  else
-    apply Decidable.isFalse
-    grind only
+@[reducible] def Effect.Input (e : Effect) : Type := e.InputWithId
+@[reducible] def Effect.Output (e : Effect) : Type := e.OutputWithId
 
 section Meta
 
@@ -115,8 +108,8 @@ elab_rules : command
       $mods:declModifiers
       def $declId $params* : Effect where
         name := $(quote declId.getId)
-        Input := $input
-        Output := $output
+        InputWithId := .mk ($input)
+        OutputWithId := .mk ($output)
     )
 
 end Meta
@@ -133,13 +126,13 @@ inductive Effects (effects : Set Effect) (a : Type) where
     (e : Effect)
     (inp : e.Input)
     (cont : Effect.Output e → Effects effects a)
-    (h_effect : effects e := by grind)
+    (h_effect : e ∈ effects := by grind)
 
 def Effects.effect
   {effects}
   (e : Effect)
   (inp : e.Input)
-  (h_effect : effects e := by grind)
+  (h_effect : e ∈ effects := by grind)
   : Effects effects (Effect.Output e) :=
   .effectThen e inp .pure
 
@@ -157,7 +150,7 @@ def Effects.run
   {effects : Set Effect}
   {Result} [Pure Result]
   (x : Effects effects α)
-  (h_effect_result : ∀ e, effects e → EffectResult e Result := by simp_all)
+  (h_effect_result : ∀ e ∈ effects, EffectResult e Result := by simp_all)
   : Result α :=
   match x with
   | .pure a => Pure.pure a
@@ -176,7 +169,7 @@ instance {m err} [MonadExcept err m] [Inhabited err]
 : EffectResult Crash m where
   translate _msg _cont := throw default
 
-def div (x y : Nat) : Effects (fun e => e = Crash) Nat := do
+def div (x y : Nat) : Effects {Crash} Nat := do
   if y == 0 then
     let empty ← .effect Crash ()
     empty.elim
@@ -185,20 +178,22 @@ def div (x y : Nat) : Effects (fun e => e = Crash) Nat := do
 
 #eval show Option Nat from
   Effects.run
-    (effects := (· = Crash))
+    (effects := {Crash})
     (div 10 0)
     $ by
       intros e h_eq
-      subst h_eq
+      simp at h_eq
+      subst e
       infer_instance
 
 #eval show IO Nat from
   Effects.run
-    (effects := (· = Crash))
+    (effects := {Crash})
     (div 10 5)
     $ by
       intros e h_eq
-      subst_vars
+      simp at h_eq
+      subst e
       infer_instance
 
 /-- Print a value. -/
@@ -213,7 +208,7 @@ instance : EffectResult Print IO where
 
 #eval show IO Nat from
   Effects.run
-    (effects := fun e => e = Crash ∨ e = Print)
+    (effects := {Print, Crash})
     (do
       .effect Print "Hello, world!"
       .effect Print "This is an effect handler example."
@@ -231,23 +226,24 @@ instance : EffectResult Print IO where
         infer_instance
 
 @[reducible]
-effect ask (Input Output : Type) [HasTypeId Input] [HasTypeId Output] where
+effect Ask (Input Output : Type) [HasTypeId Input] [HasTypeId Output] where
   Input := Input
   Output := Output
 
 instance {Inp Out m} [HasTypeId Inp] [HasTypeId Out] [Monad m]
-[MonadReader (Inp → Out) m] : EffectResult (ask Inp Out) m where
+[MonadReader (Inp → Out) m] : EffectResult (Ask Inp Out) m where
   translate inp cont := do
     let out := (← read) inp
     cont out
 
 #eval (ReaderT.run (m := Id) · fun x => x + 1)
   <| Effects.run
-    (effects := fun e => e = ask Nat Nat)
+    (effects := {Ask Nat Nat})
     (do
-      let x ← .effect (ask Nat Nat) 9
+      let x ← .effect (Ask Nat Nat) 9
       return x * x)
     $ by
-      intros
+      intro e h
+      simp at h
       subst_vars
       infer_instance
