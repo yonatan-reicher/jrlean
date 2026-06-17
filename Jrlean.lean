@@ -1,4 +1,5 @@
 module
+public import Jrlean.LeftPipe
 public import Jrlean.CollectionLemmas
 public import Jrlean.UniqueName
 public import Jrlean.HasTypeId
