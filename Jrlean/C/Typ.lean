@@ -10,7 +10,7 @@ inductive Typ
   | int
   deriving DecidableEq
 
-@[expose, reducible]
+@[coe, expose, reducible]
 def Typ.toType : Typ → Type
   | .int => Int32
 
