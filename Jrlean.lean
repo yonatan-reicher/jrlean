@@ -1,5 +1,6 @@
 module
 public import Jrlean.Of
+public import Jrlean.Relation
 public import Jrlean.SetTactic
 public import Jrlean.ByContra
 public import Jrlean.InstanceInfer
