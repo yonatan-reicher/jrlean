@@ -7,25 +7,19 @@ public import Jrlean.Coc.Beta
 
 namespace Jrlean.Coc
 
-/-
-
 variable [varKind : VarKind]
 
 @[simp]
 theorem app_lam_equiv {v ty body a}
-: .app (.lam v ty body) a =β body.moveOutOfBinder v.toVar a := by
-  unfold Term.BetaEquiv
-  apply Term.CongruenceOf.of
-  rfl
+: .app (.lam v ty body) a =β body.moveOutOfBinder v.toVar a := .beta
 
 grind_pattern app_lam_equiv => Term.app (.lam v ty body) a
 
 theorem app_equiv_reduce {f a v ty body}
 : f =β .lam v ty body -> .app f a =β body.moveOutOfBinder v.toVar a := by
   intro h_f
-  unfold Term.BetaEquiv
   calc
-    .app f a =β .app (.lam v ty body) a := .app h_f .refl
+    .app f a =β .app (.lam v ty body) a := .app_congr h_f .refl
     _ =β body.moveOutOfBinder v.toVar a := app_lam_equiv
 
 grind_pattern app_equiv_reduce => f =β .lam v ty body, f.app a
@@ -34,13 +28,11 @@ grind_pattern app_equiv_reduce => f.app a =β body.moveOutOfBinder v.toVar a, Te
 @[grind., grind→]
 theorem app_congr {f₁ f₂ a₁ a₂}
 : f₁ =β f₂ → a₁ =β a₂ → f₁.app a₁ =β f₂.app a₂ :=
-  fun h_f h_a => Term.CongruenceOf.app h_f h_a
+  fun h_f h_a => .app_congr h_f h_a
 
 @[grind., grind! =>]
 theorem binder_congr {k v ty₁ ty₂ body₁ body₂}
 : ty₁ =β ty₂ → body₁ =β body₂ → .binder k v ty₁ body₁ =β .binder k v ty₂ body₂ :=
-  fun h_ty h_body => Term.CongruenceOf.binder h_ty h_body
-
 /-- Describes the possible cases of beta equivalences -/
 private inductive BetaEquivCases : Relation Term where
   | refl {t} : BetaEquivCases t t
