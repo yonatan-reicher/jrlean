@@ -1,5 +1,7 @@
 module
 public import Jrlean.Of
+public import Jrlean.SetTactic
+public import Jrlean.ByContra
 public import Jrlean.CollectionLemmas
 public import Jrlean.UniqueName
 public import Jrlean.HasTypeId
