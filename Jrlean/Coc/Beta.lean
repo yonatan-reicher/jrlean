@@ -2,7 +2,6 @@ module
 
 public import Jrlean.Coc.Basic
 public import Jrlean.Coc.MoveIntoOutOf
-public import Jrlean.Coc.CongruenceOf
 public import Jrlean.Relation
 import Jrlean.SetTactic
 import Jrlean.ByContra
@@ -18,16 +17,23 @@ def betaHead : Term → Option Term
   | app (lam x _ body) arg => some (body.moveOutOfBinder x.toVar arg)
   | _ => none
 
-def BetaEquiv : Relation Term := sorry
+inductive BetaEquiv : Relation Term
+  | beta {x ty body arg} : BetaEquiv (app (lam x ty body) arg) (body.moveOutOfBinder x.toVar arg)
+  | refl {t} : BetaEquiv t t
+  | symm {t₁ t₂} : BetaEquiv t₁ t₂ → BetaEquiv t₂ t₁
+  | trans {t₁ t₂ t₃} : BetaEquiv t₁ t₂ → BetaEquiv t₂ t₃ → BetaEquiv t₁ t₃
+  | app_congr {f₁ f₂ a₁ a₂} : BetaEquiv f₁ f₂ → BetaEquiv a₁ a₂ → BetaEquiv (app f₁ a₁) (app f₂ a₂)
+  | binder_congr {k v ty₁ ty₂ body₁ body₂} : BetaEquiv ty₁ ty₂ → BetaEquiv body₁ body₂
+    → BetaEquiv (binder k v ty₁ body₁) (binder k v ty₂ body₂)
 
 infix:50 " =β " => BetaEquiv
 
 abbrev BetaNEquiv a b := ¬(a =β b)
 infix:50 " ≠β " => BetaNEquiv
 
-@[refl, simp, grind .] theorem BetaEquiv_refl {t} : t =β t := sorry
-@[symm, grind →] theorem BetaEquiv_symm {t₁ t₂} : t₁ =β t₂ → t₂ =β t₁ := sorry
-@[grind →] theorem BetaEquiv_trans {t₁ t₂ t₃} : t₁ =β t₂ → t₂ =β t₃ → t₁ =β t₃ := sorry
+@[refl, simp, grind .] theorem BetaEquiv_refl {t} : t =β t := .refl
+@[symm, grind →] theorem BetaEquiv_symm {t₁ t₂} : t₁ =β t₂ → t₂ =β t₁ := .symm
+@[grind →] theorem BetaEquiv_trans {t₁ t₂ t₃} : t₁ =β t₂ → t₂ =β t₃ → t₁ =β t₃ := .trans
 
 instance : Std.Refl BetaEquiv where refl _ := BetaEquiv_refl
 instance : Std.Symm BetaEquiv where symm _ _ := BetaEquiv_symm
@@ -54,4 +60,3 @@ partial def betaReduce (t : Term) : Term :=
     | none => app f a
   | binder k v ty body =>
     binder k v (betaReduce ty) (betaReduce body)
-
