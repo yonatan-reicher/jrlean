@@ -39,8 +39,7 @@ elab_rules : tactic
     let val ← Term.exprToSyntax val
     let ty ← Term.exprToSyntax ty
     evalTactic <| ← match h, rev with
-      | some h, some none => `(tactic| generalize%$set $h : ($val : $ty) = $id at *)
-      | some h, some (some _rev) => `(tactic|
-        (generalize%$set $h : ($val : $ty) = $id at * ; symm at h)
-      )
+      | some h, some none =>
+        `(tactic| (generalize%$set $h : ($val : $ty) = $id at * ; symm at $h:ident))
+      | some h, some (some _rev) => `(tactic| generalize%$set $h : ($val : $ty) = $id at *)
       | _, _ => `(tactic| generalize%$set ($val : $ty) = $id at *)
