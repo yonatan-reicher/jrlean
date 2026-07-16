@@ -4,6 +4,7 @@ import Jrlean.SetTactic
 import Jrlean.ByContra
 public import Jrlean.Coc.MoveIntoOutOf
 public import Jrlean.Coc.Beta
+public import Jrlean.Coc.BetaHeadInduction
 
 namespace Jrlean.Coc
 
@@ -33,110 +34,87 @@ theorem app_congr {f₁ f₂ a₁ a₂}
 @[grind., grind! =>]
 theorem binder_congr {k v ty₁ ty₂ body₁ body₂}
 : ty₁ =β ty₂ → body₁ =β body₂ → .binder k v ty₁ body₁ =β .binder k v ty₂ body₂ :=
-/-- Describes the possible cases of beta equivalences -/
-private inductive BetaEquivCases : Relation Term where
-  | refl {t} : BetaEquivCases t t
-  | binder_congr {k v ty₁ ty₂ body₁ body₂} : ty₁ =β ty₂ → body₁ =β body₂
-    → BetaEquivCases (.binder k v ty₁ body₁) (.binder k v ty₂ body₂)
-  | app_congr {f₁ f₂ a₁ a₂} : f₁ =β f₂ → a₁ =β a₂ → BetaEquivCases (f₁.app a₁) (f₂.app a₂)
-  | beta {v ty body a t} : BetaEquivCases t (body.moveOutOfBinder v.toVar a)
-    → BetaEquivCases t (.app (.lam v ty body) a)
+  fun h_ty h_body => .binder_congr h_ty h_body
 
-@[symm]
-private theorem BetaEquivCases_symm {t₁ t₂} : BetaEquivCases t₁ t₂ → BetaEquivCases t₂ t₁ := by
+@[grind ., simp]
+theorem prop_nequiv_type : .prop ≠β .type := by
+  -- We need a symmetric induction hypothesis
+  suffices ∀ t₁ t₂, t₁ =β t₂ → ¬(t₁ = .prop ∧ t₂ = .type) ∧ ¬(t₁ = .type ∧ t₂ = .prop) by grind
+  intro t₁ t₂
   intro h
   induction h
-  case refl => exact .refl
-  case binder_congr k v ty₁ ty₂ body₁ body₂ h_ty h_body =>
+  case beta v ty body arg =>
+    apply And.intro <;> (rintro ⟨h₁, h₂⟩; contradiction)
+  case refl t => grind only
+  case symm t₁ t₂ h ih => grind only
+  case trans t₁ t₂ t₃ h₁ h₂ ih₁ ih₂ =>
+    obtain ⟨ih₁₁, ih₁₂⟩ := ih₁
+    obtain ⟨ih₂₁, ih₂₂⟩ := ih₂
+    apply And.intro
+    · rintro ⟨_, _⟩
+      subst t₁ t₃
+      simp_all only [true_and, reduceCtorEq, false_and, not_false_eq_true, and_true, and_self]
 
-  case binder_congr k v ty₁ ty₂ body₁ body₂ h_ty h_body ih =>
-    exact .binder_congr h_ty.symm h_body.symm
-  case app_congr f₁ f₂ a₁ a₂ h_f h_a ih =>
-    exact .app_congr h_f.symm h_a.symm
-  case beta v ty body a t ih =>
-    exact .beta ih
+#print Term.BetaEquiv.recOn
 
-private theorem BetaEquivCases_of_BetaEquiv {t₁ t₂}
-: t₁ =β t₂ → BetaEquivCases t₁ t₂ := by
-  intro h
-  induction h
-  case beta t v ty body a reduced h ih => exact .beta ih
-  case refl => exact .refl
-  case symm t₁ t₂ h ih =>
+theorem moveOutOfBinder_equiv_prop {body v arg}
+: body.moveOutOfBinder v arg =β .prop → body =β .prop := by
+  intro h_moveOut_equiv_prop
+  induction body generalizing v arg
+  case prop => rfl
+  case type => rfl
 
-  case refl t =>
-    cases t
-    case app => exact True.intro
-    case binder k v ty body => left; exists ty, body
-    all_goals left; rfl
-  case symm t₁ t₂ h ih =>
-    cases t₁
-    case app f a =>
-      have : ∃ f' a', f.app a = .app f' a' := by exists f, a
-      split <;> first | right; exact this | trivial
-    case binder k v ty body =>
-      rcases ih with ⟨ty', body', h_eq⟩ | ⟨f, a, h_eq⟩
-      · subst h_eq; left; exists ty, body
-      · subst h_eq; exact True.intro
-    all_goals
-      rcases ih with h_eq | ⟨f, a, h_eq⟩
-      · subst h_eq; left; rfl
-      · subst h_eq; exact True.intro
-  case trans t₁ t₂ t₃ h₁₂ h₂₃ ih₁₂ ih₂₃ =>
-    cases t₁
-    case app f a => exact True.intro
-    case binder k v ty body =>
-      show (∃ ty' body', t₃ = .binder k v ty' body') ∨ (∃ f a, t₃ = .app f a)
-      change _ ∨ _ at ih₁₂
-      rcases ih₁₂ with ⟨ty', body', h_eq⟩ | ⟨f, a, h_eq⟩ <;> subst h_eq
-      · exact ih₂₃
-      · clear ih₂₃
-        cases t₃
-        case binder k' v' ty'' body'' =>
-          left
-          exists ty'', body''
-          simp
-          sorry
-        all_goals simp
+theorem app_equiv_prop_unique {f a}
+: .app f a =β .prop → ∀ t, .app f a =β t → t = .prop ∨ (∃ f' a', t = .app f' a') := by
+  let isApp (t : Term) := ∃ f a, t = .app f a
+  -- Change the goal to be easier for induction
+  suffices ∀ t, isApp t → t =β .prop → ∀ t', t =β t' → t' = .prop ∨ isApp t' by
+    apply this
+    show isApp (.app f a)
+    exists f, a
+  clear f a
+  intro t
+  induction t using Term.betaHeadInduction
+  iterate 4 nofun -- All cases but application are trivial
+  case betaHead v ty body arg ih_ty ih_body =>
+    intro h_isApp; clear h_isApp
+    intro h_app_equiv_prop
+    intro t' h_app_equiv_t'
+    show t' = .prop ∨ isApp t'
+    have : body.moveOutOfBinder v.toVar arg =β t' := by
+      apply Term.BetaEquiv.trans
+      · symm; apply Term.BetaEquiv.beta (ty:=ty)
+      · exact h_app_equiv_t'
+    have : body.moveOutOfBinder v.toVar arg =β .prop := by
+      apply Term.BetaEquiv.trans
+      · symm; apply Term.BetaEquiv.beta (ty:=ty)
+      · exact h_app_equiv_prop
+    by_cases t' = .prop
+    next => left; assumption
+    next =>
 
+    apply ih_body
+    · done
+    · done
+    · done
+    ∎
+  case app f a h_betaHead_eq_none ih_f ih_a =>
+    intro h_isApp_app; clear h_isApp_app
+    intro h_app_equiv_prop
+    intro t' h_app_equiv_t'
+    show t' = .prop ∨ isApp t'
+    cases f
+    case type =>
+      induction h_app_equiv_prop
+
+
+  case prop => nofun
 
 @[grind]
 theorem binder_nequiv_prop_type_var {k v ty body t}
-: .binder k v ty body =β t → t ≠ .prop ∧ t ≠ .type ∧ ∀ v, t ≠ .var v := by
-  intro h
-  set b := Term.binder k v ty body with h_b
-  induction h
-  apply Term.BetaEquiv.rec (motive := fun
-    | .binder k v ty body, t | t, .binder k v ty body => t ≠ .prop ∧ t ≠ .type ∧ ∀ v, t ≠ .var v
-    | _, _ => True)
-  case beta =>
-    -- The binder will never look like a beta application
-    intro v ty body a
-    set rhs := body.moveOutOfBinder v.toVar a with h_rhs
-    generalize h_rhs : body.moveOutOfBinder v.toVar a = rhs
-    cases rhs
-    case binder => simp only [ne_eq, reduceCtorEq, not_false_eq_true, implies_true, and_self]
-    all_goals trivial
-  case refl =>
-    intro t
-    cases t
-    case binder => simp only [ne_eq, reduceCtorEq, not_false_eq_true, implies_true, and_self]
-    all_goals trivial
-  case symm =>
-    intro t₁ t₂ h ih
-    cases t₁ <;> cases t₂
-    case binder.binder => simp only [ne_eq, reduceCtorEq, not_false_eq_true, implies_true, and_self]
-    all_goals trivial
-  case trans =>
-    intro t₁ t₂ t₃ h₁ h₂ ih₁ ih₂
-    cases t₁ <;> cases t₃
-    case binder.binder => simp only [ne_eq, reduceCtorEq, not_false_eq_true, implies_true, and_self]
-    case binder.type =>
-      exfalso
-      simp at ih₁
-      simp at ih₂
-    all_goals try simp_all
-    · simp_all
+: .binder k v ty body =β t → t ≠ .prop ∧ t ≠ .type ∧ ∀ v, t ≠ .var v := sorry
+
+/-
 
 theorem binder_equiv_binder {k₁ k₂ v₁ v₂ ty₁ body₁ ty₂ body₂}
 : .binder k₁ v₁ ty₁ body₁ =β .binder k₂ v₂ ty₂ body₂

@@ -48,6 +48,20 @@ instance : Setoid Term where
   r := BetaEquiv
   iseqv := Equivalence_BetaEquiv
 
+-- @[induction_eliminator, elab_as_elim]
+-- theorem leftInduction
+-- {motive : Term → Prop}
+-- (beta : ∀ {v ty body arg}, motive (body.moveOutOfBinder v.toVar arg)
+--   → motive (app (lam v ty body) arg))
+-- (refl : ∀ {t}, motive t)
+-- (symm : ∀ {t₁ t₂}, t₁ =β t₂ → motive t₁ → motive t₂)
+-- -- (trans : ∀ {t₁ t₂ t₃}, t₁ =β t₂ → t₂ =β t₃ → motive t₁ → 
+-- (app_congr : ∀ {f₁ f₂ a₁ a₂}, f₁ =β f₂ → a₁ =β a₂ → motive f₁ → motive f₂ → motive a₁ → motive a₂
+--   → motive (app f₁ a₁))
+-- : ∀ {t}, motive t := by
+--   induction
+--   sorry
+
 @[expose]
 partial def betaReduce (t : Term) : Term :=
   match t with

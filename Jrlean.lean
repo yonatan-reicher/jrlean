@@ -1,6 +1,10 @@
 module
 public import Jrlean.Of
 public import Jrlean.Relation
+public import Jrlean.Subrelation
+public import Jrlean.ReflexiveTransitiveClosure
+public import Jrlean.Diamond
+public import Jrlean.Confluence
 public import Jrlean.SetTactic
 public import Jrlean.ByContra
 public import Jrlean.InstanceInfer
@@ -9,6 +13,7 @@ public import Jrlean.UniqueName
 public import Jrlean.HasTypeId
 public import Jrlean.TypeWithId
 public import Jrlean.Coe
+public import Jrlean.Assumption
 public import Jrlean.FiniteType
 public import Jrlean.DMonad
 public import Jrlean.DReader
