@@ -4,3 +4,8 @@ defaultTargets = ["Jrlean"]
 
 [[lean_lib]]
 name = "Jrlean"
+
+[leanOptions]
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+maxSynthPendingDepth = 3
