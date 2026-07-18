@@ -8,6 +8,7 @@ public import Jrlean.Coc.VarConversions
 public import Jrlean.Coc.BinderKind
 public import Jrlean.Coc.BinderKindNotation
 public import Jrlean.Coc.Term
+public import Jrlean.Coc.TermNotation
 
 /-!
 "CoC" stands for "Calculus of Constructions". It is an extension to the standard lambda calculus
