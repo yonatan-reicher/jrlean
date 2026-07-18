@@ -1,36 +1,21 @@
 module
 
+public import Jrlean.Coc.VarKind
+public import Jrlean.Coc.VarDecl
 public import Jrlean.Coc.Var
-public import Jrlean.Coc.Basic
-public import Jrlean.Coc.Notation
-public import Jrlean.Coc.Repr
-public import Jrlean.Coc.MoveIntoOutOf
-public import Jrlean.Coc.Beta
-public import Jrlean.Coc.ParallelBetaReduction
-public import Jrlean.Coc.BetaHeadInduction
-public import Jrlean.Coc.BetaLemmas
-public import Jrlean.Coc.Logical
-public import Jrlean.Coc.LogicalLemmas
+public import Jrlean.Coc.VarConversions
 
-public import Jrlean.Relation
-import Jrlean.Coe
-import Jrlean.InstanceInfer
-import Jrlean.InstanceInfer
+public import Jrlean.Coc.BinderKind
+public import Jrlean.Coc.BinderKindNotation
+public import Jrlean.Coc.Term
 
-namespace Jrlean.Coc
+/-!
+"CoC" stands for "Calculus of Constructions". It is an extension to the standard lambda calculus
+that is the basis of both Lean's and Roq's dependent type theories. Coc expressions are called
+"terms", and are dependently typed. This frameworks has both terms with de Bruijn indices and terms
+with named identifiers.
 
-variable {varKind : VarKind}
+Everything is defined in the `Coc` namespace.
 
-public section
-
-@[grind, simp]
-def Term.subst (t : Term) (x : Var) (s : Term) : Term :=
-  match t with
-  | type => type
-  | prop => prop
-  | var v => if v = x then s else var v
-  | app f a => app (subst f x s) (subst a x s)
-  | binder k v ty body =>
-    binder k v (ty.subst x s) (body.subst (x.moveIntoBinder v.toVar) s)
-
-end
+In this module, the word `lambda` is sometimes written as `lam`.
+-/

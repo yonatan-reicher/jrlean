@@ -1,11 +1,33 @@
 module
 
-import Jrlean.Coc.Basic
+public import Jrlean.Coc.Basic
+import Lean
 
--- TODO: Check if notation can be scoped, and if so, try to define scoped notation that doesn't need
--- to be a dsl
+open Lean.PrettyPrinter (Unexpander)
 
 namespace Jrlean.Coc
+
+section PropAndType
+
+public abbrev prop {varKind: VarKind} : Term := Term.prop
+public abbrev type {varKind: VarKind} : Term := Term.type
+@[app_unexpander Term.prop] public meta def Term.prop.unexpander : Unexpander | _ => ``(prop)
+@[app_unexpander Term.type] public meta def Term.type.unexpander : Unexpander | _ => ``(type)
+
+#reduce prop
+
+end PropAndType
+
+macro "var " i:ident : term => `(@Term.var (varKind:=.named) ($(Lean.quote i.getId), 0))
+
+macro:arg "λ" x:ident " : " ty:term:min ". " body:term:min : term => do
+  let x : Lean.Name := x.getId
+  ``(Term.binder (varKind:=VarKind.named) (λ) $(Lean.quote x) $ty $body)
+
+macro_rules
+  | `($f:term $a:term) => ``(Term.app ($f : Term) ($a : Term))
+
+#reduce let := VarKind.named ; prop prop
 
 /--
 Syntax of variables in terms CoC terms. Can be either an identifier, or a Lean
