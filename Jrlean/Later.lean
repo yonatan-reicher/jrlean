@@ -2,8 +2,9 @@ module
 
 -- Ours
 public import Jrlean.LaterEnvExtension
+import Jrlean.Of
 -- Lean
-public import Lean.Elab.Tactic
+public meta import Lean.Elab.Tactic
 
 open Lean
 open Lean.Elab.Tactic
@@ -25,8 +26,51 @@ meta instance : MonadStateOf (List LaterContext) TacticM where
     setEnv env'
     return ret
 
-
 -- When we enter a `later` block, we push a new `LaterContext` onto the stack, and when done, we pop.
-private meta def onEnter (termGoal : MVarId) : TacticM Unit := do
-  let ctx := LaterContext.mk termGoal
+meta def onEnter (termGoal : MVarId) : TacticM Unit := do
+  let ctx : LaterContext := { term := termGoal }
   modify (ctx :: ·)
+
+meta def onSwitchToProof : TacticM Unit := do
+  match (← get) with
+  | [] => throwError "Not inside a `later` block - something went wrong"
+  | head :: tail => do
+    if head.inProofs then
+      throwError "Already inside a proof section of a `later` block - something went wrong"
+    set of { head with inProofs := true } :: tail
+
+meta def onExit : TacticM Unit := do
+  match (← get) with
+  | [] => throwError "Not inside a `later` block - something went wrong"
+  | head :: tail =>
+    if not head.inProofs then
+      throwError "Exiting a `later` block without entering the proof section - something went wrong"
+    set tail
+
+meta def top : TacticM LaterContext := do
+  match (← get) with
+  | [] => throwError "Not inside a `later` block - something went wrong"
+  | head :: _ => return head
+
+meta def modifyTop (f : LaterContext → LaterContext) : TacticM Unit := do
+  match (← get) with
+  | [] => throwError "Not inside a `later` block - something went wrong"
+  | head :: tail => set (f head :: tail)
+
+meta def later : TacticM Unit := do
+  let mvar ← getMainGoal
+  replaceMainGoal [] -- This just gets rid of the main goal.
+  (← top).term.withContext do appendGoals [mvar]
+
+elab_rules : tactic
+  | `(tactic| later) => later
+  | `(tactic| $term:term with laters $tactics) => do
+    let goal ← getMainGoal
+    let decl ← goal.getDecl
+    let goalType := decl.type
+    onEnter goal
+    let term ← elabTerm term goalType
+    closeMainGoal `exact term (checkUnassigned := false)
+    onSwitchToProof
+    evalTacticSeq tactics
+    onExit
