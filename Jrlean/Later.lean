@@ -86,3 +86,11 @@ elab_rules <= expectedType
 
 -- Use `later` in `get_elem_tactic`
 macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| later)
+
+
+/-
+# TODO
+Instead of elaboration with meta-variables, we should use the `laters` proof block to make a list of
+syntax objects. Then, the `later` tactic can pull from the syntax objects and elaborate a single one
+when needed.
+-/
