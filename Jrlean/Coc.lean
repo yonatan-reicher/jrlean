@@ -20,9 +20,9 @@ public import Jrlean.Coc.Sort
 public import Jrlean.Coc.VarSubst
 public import Jrlean.Coc.TermFreeVars
 public import Jrlean.Coc.Subst
-public import Jrlean.Coc.SubstLemmas
-
-public import Jrlean.Coc.BetaReducesTo
+-- public import Jrlean.Coc.SubstLemmas
+--
+-- public import Jrlean.Coc.BetaReducesTo
 
 /-!
 "CoC" stands for "Calculus of Constructions". It is an extension to the standard lambda calculus
