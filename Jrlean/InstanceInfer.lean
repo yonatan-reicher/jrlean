@@ -9,6 +9,6 @@ macro "instance " t:bracketedBinder* ": " typeClass:ident name:ident " infer" : 
   -- TODO: Why can't I add visibility modifiers before the instance keywords?
   `(
     instance $t:bracketedBinder* : $typeClass $name := by
+      try unfold $typeClass
       simp [$name:term]; split <;> infer_instance
   )
-

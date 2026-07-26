@@ -1,0 +1,49 @@
+module
+
+public import Jrlean.Coc.VarOffseting
+
+namespace Jrlean.Coc
+
+@[expose]
+public section
+
+variable {varKind : VarKind}
+variable {v v' : Var'}
+
+attribute [local grind .]
+  Var.offsetIn
+  Var.offsetOut
+  Var.offsetInDeBruijn
+  Var.offsetInNamed
+  Var.offsetOutDeBruijn
+  Var.offsetOutNamed
+  NamedVar.ext
+
+@[grind _=_]
+private theorem simp : v↓v' = v.offsetOut v' := rfl
+
+@[simp]
+theorem Var.offsetOut_isSome_of_neq
+    (h : v ≠ v')
+    : (v↓v').isSome := by
+  grind only [= eq_2, = simp, offsetOut, offsetOutDeBruijn, = Option.isSome_some, offsetOutNamed,
+    NamedVar.ext, #aa1a, #616e, #75b3, #9840]
+grind_pattern Var.offsetOut_isSome_of_neq => v↓v'
+
+@[grind =, simp]
+theorem Var.offsetOut_eq_none_of_eq : v↓v = none := by
+  grind only [= simp, offsetOut, offsetOutDeBruijn, offsetOutNamed, #aa1a]
+
+@[grind =, simp]
+theorem Var.offsetOut_isSome
+    : (v↓v').isSome = (v ≠ v') := by
+  grind only [usr offsetOut_isSome_of_neq, = simp, offsetOut, offsetOutDeBruijn,
+    = Option.isSome_none, offsetOutNamed, #5af2, #aa1a]
+
+@[simp]
+theorem Var.offsetOut_eq_some_of_neq
+    (h : v ≠ v')
+    : ∃ v'', v↓v' = some v'' := by
+  have : (v↓v').isSome := Var.offsetOut_isSome_of_neq h
+  exact Option.isSome_iff_exists.mp this
+grind_pattern Var.offsetOut_eq_some_of_neq => v↓v'
