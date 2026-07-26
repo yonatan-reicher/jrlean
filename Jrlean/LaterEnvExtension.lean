@@ -1,6 +1,7 @@
 module
 
-public import Lean
+public meta import Lean.Meta.Basic
+public meta import Lean.Environment
 
 open Lean
 
@@ -18,7 +19,7 @@ A global environment extension that stores the context needed for the `later` ta
 block. This is a list because these can be nested. When the list is empty, we are not inside a
 `later` block.
 -/
-meta initialize laterEnvExtension : EnvExtension (List LaterContext) ←
+public meta initialize laterEnvExtension : EnvExtension (List LaterContext) ←
   Lean.registerEnvExtension
     (mkInitial := pure [])
     (replay? := none) -- TODO: I have no idea what this does.
