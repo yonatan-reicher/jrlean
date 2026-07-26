@@ -14,7 +14,7 @@ namespace Jrlean
 syntax (name := laterTactic) "later" : tactic
 syntax (name := laterBlock) term:min " with " "laters " tacticSeq : tactic
 
-meta instance : MonadState (List LaterContext) TacticM where
+meta instance : MonadStateOf (List LaterContext) TacticM where
   get := return laterEnvExtension.getState (← getEnv)
   set s := modifyEnv (laterEnvExtension.setState · s)
   modifyGet f := do
