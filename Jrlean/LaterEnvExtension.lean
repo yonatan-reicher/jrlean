@@ -14,6 +14,7 @@ public meta structure LaterContext where
   -/
   term : MVarId
   inProofs : Bool := false
+  thingsToProve : List MVarId := []
 
 /--
 A global environment extension that stores the context needed for the `later` tactic and the `later`

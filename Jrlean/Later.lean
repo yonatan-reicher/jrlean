@@ -38,6 +38,7 @@ meta def onSwitchToProof : TacticM Unit := do
   | head :: tail => do
     if head.inProofs then
       throwError "Already inside a proof section of a `later` block - something went wrong"
+    appendGoals head.thingsToProve
     set of { head with inProofs := true } :: tail
 
 meta def onExit : TacticM Unit := do
@@ -61,7 +62,8 @@ meta def modifyTop (f : LaterContext → LaterContext) : TacticM Unit := do
 meta def later : TacticM Unit := do
   let mvar ← getMainGoal
   replaceMainGoal [] -- This just gets rid of the main goal.
-  (← top).term.withContext do appendGoals [mvar]
+  (← top).term.withContext do modifyTop fun ctx =>
+    { ctx with thingsToProve := mvar :: ctx.thingsToProve }
 
 elab_rules : tactic | `(tactic| later) => later
 
