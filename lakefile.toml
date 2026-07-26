@@ -8,4 +8,3 @@ name = "Jrlean"
 [leanOptions]
 relaxedAutoImplicit = false
 weak.linter.mathlibStandardSet = true
-maxSynthPendingDepth = 3

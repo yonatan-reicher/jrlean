@@ -4,7 +4,6 @@ import Lean
 public import Jrlean.Coc.BinderKind
 import Jrlean.Of
 
-
 open Lean (TSyntax)
 open Lean.PrettyPrinter (Unexpander)
 

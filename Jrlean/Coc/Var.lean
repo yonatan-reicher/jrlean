@@ -7,56 +7,61 @@ import Jrlean.InstanceInfer
 
 namespace Jrlean.Coc
 
-public section
+@[expose] public section
 
+@[ext]
+structure NamedVar where
+  /-- The identifier given to the variable. -/
+  name : Lean.Name
+  /--
+  De-Bruijn-style index give to the identifier. Basically, 'x' with depth 2 refers to a variable
+  named 'x' that was defined before the 2 last local 'x' definitions.
+  -/
+  depth : Nat
+  deriving DecidableEq, Inhabited, Hashable
+
+instance : Repr NamedVar where
+  reprPrec
+    | ⟨name, 0⟩, _ => repr name
+    | ⟨name, depth⟩, _ => "⟨" ++ repr name ++ ", " ++ repr depth ++ "⟩"
+
+@[app_unexpander mk] public meta def NamedVar.unexpander : Lean.PrettyPrinter.Unexpander
+  | `({ name := $n, depth := 0})
+  | `(NamedVar.mk $n 0)
+    => `($n)
+  | `({ name := $n, depth := $d})
+  | `(NamedVar.mk $n $d)
+    => `(⟨$n, $d⟩)
+  | _ => throw ()
+
+/-- info: `x -/ #guard_msgs in #reduce show NamedVar from { name := `x , depth := 0 }
+/-- info: ⟨`x, 12⟩ -/ #guard_msgs in #reduce show NamedVar from { name := `x , depth := 12 }
+
+set_option linter.unusedVariables false in
 /-- The type that represents this variable as a term. -/
-abbrev Var : [VarKind] → Type
+@[grind]
+def Var : {varKind : VarKind} → Type
   | .deBruijn => Nat
-  | .named => Lean.Name × Nat
+  | .named => NamedVar
 
 variable {varKind : VarKind}
 
-abbrev Var.name (v : @Var .named) : Lean.Name := v.1
-abbrev Var.depth (v : @Var .named) : Nat := v.2
+/-- Infer a definition by dispatching based on the underlying type. -/
+local macro "infer " "instance " " : " typeClass:term : command => `(
+  instance : $typeClass (@Var varKind) := by
+    unfold Var
+    cases varKind <;> (simp only ; infer_instance)
+)
+infer instance : Inhabited
+infer instance : DecidableEq
+infer instance : Hashable
 
-instance : Inhabited Var infer
-instance : DecidableEq Var infer
-instance : Hashable Var infer
+abbrev Var' [varKind : VarKind] := @Var varKind
 
-instance : Repr Var :=
+instance : Repr Var' :=
   match varKind with
-  | .deBruijn => inferInstance
+  | .deBruijn => inferInstanceAs <| Repr Nat
   | .named =>
     { reprPrec v n :=
         if v.depth = 0 then Repr.reprPrec v.name n
-        else Repr.reprPrec v n }
-
-variable {vkind : VarKind}
-
--- TODO: Move these into a file about substitution
-
-/-- Updates a variable term to be of under a new binder. -/
-@[grind, simp]
-def Var.moveIntoBinder (var : Var) (bound : Var) : Var :=
-  match vkind with
-  | .deBruijn =>
-    if var < bound then var
-    else var + 1
-  | .named =>
-    if var.name != bound.name then var
-    else if var.depth < bound.depth then var
-    else (var.name, var.depth + 1)
-
-/-- Updates a variable term to be of out of a given binder. -/
-@[grind, simp]
-def Var.moveOutOfBinder (var : Var) (unbound : Var) : Option Var :=
-  match vkind with
-  | .deBruijn =>
-    if var = unbound then none
-    else if var > unbound then some (var - 1)
-    else some var
-  | .named =>
-    if var.name != unbound.name then some var
-    else if var.depth = unbound.depth then none
-    else if var.depth > unbound.depth then some (var.name, var.depth - 1)
-    else some var
+        else Repr.reprPrec (show NamedVar from v) n }
