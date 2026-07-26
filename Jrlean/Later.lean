@@ -8,12 +8,13 @@ public meta import Lean.Elab.Tactic
 
 open Lean
 open Lean.Elab.Tactic
+open Lean.Meta
 
 namespace Jrlean
 
 -- Define the syntax
 syntax (name := laterTactic) "later" : tactic
-syntax (name := laterBlock) term:min " with " "laters " tacticSeq : tactic
+syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq : term
 
 meta instance : MonadStateOf (List LaterContext) TacticM where
   get := return laterEnvExtension.getState (← getEnv)
@@ -62,15 +63,24 @@ meta def later : TacticM Unit := do
   replaceMainGoal [] -- This just gets rid of the main goal.
   (← top).term.withContext do appendGoals [mvar]
 
-elab_rules : tactic
-  | `(tactic| later) => later
-  | `(tactic| $term:term with laters $tactics) => do
-    let goal ← getMainGoal
-    let decl ← goal.getDecl
-    let goalType := decl.type
-    onEnter goal
-    let term ← elabTerm term goalType
-    closeMainGoal `exact term (checkUnassigned := false)
-    onSwitchToProof
-    evalTacticSeq tactics
-    onExit
+elab_rules : tactic | `(tactic| later) => later
+
+elab_rules <= expectedType
+  | `($term:term with laters $tactics) => do
+    let goal ← mkFreshExprMVar expectedType
+    let goalMVarId := goal.mvarId!
+    let unsolvedGoals ← run goalMVarId do
+      let decl ← goalMVarId.getDecl
+      let goalType := decl.type
+      onEnter goalMVarId
+        let term ← elabTerm term goalType
+        closeMainGoal `exact term (checkUnassigned := false)
+      onSwitchToProof
+      evalTacticSeq tactics
+      onExit
+    if unsolvedGoals.isEmpty then
+      throwError "Leftover goals."
+    return goal
+
+-- Use `later` in `get_elem_tactic`
+macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| later)
