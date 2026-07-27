@@ -92,10 +92,7 @@ theorem Term.offsetOut_isSome_of
       · exfalso
         rename (v↑v')↓v' ≠ some v => h
         apply h; clear h
-        cases varKind
-        case deBruijn =>
-          unfold Offset.offsetIn Var.offsetInDeBruijn Var.offsetOutDeBruijn
-        simp
+        exact Var.offsetIn_offsetOut
     clear ih_ty ih_body h
     rw [Option.isSome_iff_exists] at h₁ h₂
     obtain ⟨ty',h₁⟩ := h₁

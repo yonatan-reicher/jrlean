@@ -2,6 +2,8 @@ module
 
 public import Jrlean.Coc.VarOffseting
 
+import Jrlean.SetTactic
+
 namespace Jrlean.Coc
 
 @[expose]
@@ -54,13 +56,29 @@ theorem Var.offsetIn_neq : v↑v' ≠ v' := by
   simp
   grind only [offsetIn, offsetInDeBruijn, offsetInNamed, #aa1a, #0019, #46c1, #8585]
 
+@[grind =, simp]
 theorem Var.offsetIn_offsetOut : (v↑v')↓v' = some v := by
-  have : v↑v' ≠ v' := offsetIn_neq
-  show (v↑v').offsetOut v' = some v
+  set vIn := v↑v' with h_vIn
+  have : vIn ≠ v' := by subst vIn; exact offsetIn_neq
+  show vIn.offsetOut v' = some v
   cases varKind
   case deBruijn =>
     rw [offsetOut, offsetOutDeBruijn]
     rw [toNat]
     rw [ite_cond_eq_false (h := eq_false this)]
-    simp [offsetInDeBruijn]
-    omega
+    rw [←apply_ite]
+    rw [Option.some_inj]
+    if h : toNat v < v' then
+      have : vIn = v := sorry
+      clear h_vIn
+      subst vIn
+      have : ¬ toNat v > v' := by grind only
+      rw [if_neg this]
+    else
+      have h_vIn : vIn = toNat v + 1 := sorry
+      have : toNat vIn > v' := by grind
+      rw [if_pos this]
+      rw [h_vIn]
+      rfl
+  case named =>
+    sorry
