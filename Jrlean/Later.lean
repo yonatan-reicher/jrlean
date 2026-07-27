@@ -32,10 +32,12 @@ meta instance [Monad m] [MonadEnv m] : MonadStateOf (List LaterContext) m where
 
 -- When we enter a `later` block, we push a new `LaterContext` onto the stack, and when done, we pop.
 meta def onEnter (proofs : List Tactic) : CoreM Unit := do
+  logInfo "onEnter called"
   let ctx : LaterContext := { proofs := proofs }
   modify (ctx :: ·)
 
 meta def onExit : CoreM Unit := do
+  logInfo "onExit called"
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: tail =>
@@ -66,12 +68,23 @@ meta def popProof : OptionT TacticM Tactic := do
     return head
 
 meta def later : TacticM Unit := do
-  dbg_trace "later tactic called"
+  logInfo "later tactic called"
   let some proof ← popProof
     | throwError "No more proofs left in the `later` block."
   withMainContext do focusAndDone do evalTactic proof
 
 elab_rules : tactic | `(tactic| later) => later
+
+elab "on " "enter " proofs:tactic* : tactic => onEnter proofs.toList
+
+macro_rules
+  | `(term| $term:term with laters $tacticSeqs:tacticSeq*) => do
+    let proofs ← tacticSeqs.mapM fun t => `(tactic| ($t))
+    `( by
+        on enter $proofs*
+        exact $term
+        run_tac onExit
+        done )
 
 elab_rules <= expectedType
   | `($term:term with laters $tacticSeqs:tacticSeq*) => do
