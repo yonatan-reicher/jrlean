@@ -18,8 +18,10 @@ open Lean.Syntax (Tactic)
 namespace Jrlean
 
 -- Define the syntax
+/-- Solves the current goal by pulling a proof from the `with laters` block. -/
 syntax (name := laterTactic) "later" : tactic
-syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq+ : term
+/-- Elaborates a term in a context where some proofs can be written outside of the term. -/
+syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq* : term
 
 variable {m} [Monad m] [MonadEnv m] [MonadLog m] [MonadError m] [AddMessageContext m] [MonadOptions m]
 
@@ -36,12 +38,10 @@ meta instance : MonadStateOf (List LaterContext) m where
 
 -- When we enter a `later` block, we push a new `LaterContext` onto the stack, and when done, we pop.
 meta def onEnter (proofs : List Tactic) : m Unit := do
-  logInfo "onEnter called"
   let ctx : LaterContext := { proofs := proofs }
   modify (ctx :: ·)
 
 meta def onExit : m Unit := do
-  logInfo "onExit called"
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: tail =>
@@ -72,7 +72,6 @@ meta def popProof : OptionT m Tactic := do
     return head
 
 public meta def later : TacticM Unit := do
-  logInfo "later tactic called"
   let some proof ← popProof (m:=TacticM)
     | throwError "No more proofs left in the `later` block."
   withMainContext do focusAndDone do evalTactic proof
@@ -83,6 +82,8 @@ public meta def withLaters (term : Term) (proofs : List Tactic) (expectedType? :
   onEnter proofs
   try
     let ret ← elabTerm term expectedType?
+    -- Make sure everything is done before the `finally` block, I think
+    synthesizeSyntheticMVarsNoPostponing
     return ret
   finally
     onExit
@@ -94,17 +95,9 @@ elab_rules <= expectedType
     let proofs ← tacticSeqs.mapM fun t => `(tactic| ($t))
     withLaters term proofs.toList expectedType
 
-elab_rules <= expectedType
-  | `($term:term with laters $tacticSeqs:tacticSeq*) => do
-    onEnter <| Array.toList <| ← tacticSeqs.mapM fun t => `(tactic| ($t))
-    dbg_trace "later block entered"
-    let ret ← elabTerm term expectedType
-    dbg_trace "exit later block"
-    onExit
-    return ret
-
 -- Use `later` in `get_elem_tactic`
-macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| later)
+-- macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| later)
+macro_rules | `(tactic| get_elem_tactic) => `(tactic| later)
 
 
 /-
