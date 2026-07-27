@@ -4,17 +4,16 @@ public meta import Lean.Meta.Basic
 public meta import Lean.Environment
 
 open Lean
+open Lean.Syntax (Tactic)
 
 namespace Jrlean
 
+/--
+Each `with later` opens a later context. The context starts with a list of proofs that are to be
+used in a `later` tactic.
+-/
 public meta structure LaterContext where
-  /--
-  This is the meta variable that is used as a goal for the term returned by the current `later`
-  block.
-  -/
-  term : MVarId
-  inProofs : Bool := false
-  thingsToProve : List MVarId := []
+  proofs : List Tactic
 
 /--
 A global environment extension that stores the context needed for the `later` tactic and the `later`
