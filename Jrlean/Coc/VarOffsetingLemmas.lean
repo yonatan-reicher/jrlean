@@ -47,3 +47,20 @@ theorem Var.offsetOut_eq_some_of_neq
   have : (v↓v').isSome := Var.offsetOut_isSome_of_neq h
   exact Option.isSome_iff_exists.mp this
 grind_pattern Var.offsetOut_eq_some_of_neq => v↓v'
+
+/-- Offseting in never gives the same variable as the rhs. -/
+@[grind ., simp]
+theorem Var.offsetIn_neq : v↑v' ≠ v' := by
+  simp
+  grind only [offsetIn, offsetInDeBruijn, offsetInNamed, #aa1a, #0019, #46c1, #8585]
+
+theorem Var.offsetIn_offsetOut : (v↑v')↓v' = some v := by
+  have : v↑v' ≠ v' := offsetIn_neq
+  show (v↑v').offsetOut v' = some v
+  cases varKind
+  case deBruijn =>
+    rw [offsetOut, offsetOutDeBruijn]
+    rw [toNat]
+    rw [ite_cond_eq_false (h := eq_false this)]
+    simp [offsetInDeBruijn]
+    omega

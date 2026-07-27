@@ -68,9 +68,7 @@ theorem subst_sort : s[x:=a] = s := by
   all_goals rfl
 
 @[grind =, simp]
-theorem subst_of_not_mem_freeVars
-    (h_not_mem : x ∉ a.freeVars)
-    : a[x:=b] = (a↓x).get! := by
+theorem subst_of_not_mem_freeVars (h_not_mem : x ∉ a.freeVars) : a[x:=b] = (a↓x).get! := by
   induction a
   iterate 2 next => simp only [subst_sort, Term.offsetOut_sort, Option.get!_some] -- prop | type
   case var v =>
