@@ -21,7 +21,7 @@ namespace Jrlean
 /-- Solves the current goal by pulling a proof from the `with laters` block. -/
 syntax (name := laterTactic) "later" : tactic
 /-- Elaborates a term in a context where some proofs can be written outside of the term. -/
-syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq* : term
+syntax:min (name := laterBlock) term:min atomic(" with " "laters ") (cdotTk tacticSeqIndentGt)* : term
 
 variable {m} [Monad m] [MonadEnv m] [MonadLog m] [MonadError m] [AddMessageContext m] [MonadOptions m]
 
@@ -91,8 +91,9 @@ public meta def withLaters (term : Term) (proofs : List Tactic) (expectedType? :
 elab_rules : tactic | `(tactic| later) => later
 
 elab_rules <= expectedType
-  | `(term| $term:term with laters $tacticSeqs:tacticSeq*) => do
-    let proofs ← tacticSeqs.mapM fun t => `(tactic| ($t))
+  | `(term| $term:term with laters $[$cdots $tacticSeqs]*) => do
+    let dotsAndTactics := cdots.zip tacticSeqs
+    let proofs ← dotsAndTactics.mapM fun (cdot, t) => `(tactic| $cdot:cdotTk $t)
     withLaters term proofs.toList expectedType
 
 -- Use `later` in `get_elem_tactic`
