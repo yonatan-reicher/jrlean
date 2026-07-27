@@ -7,16 +7,19 @@ import Jrlean.Of
 public meta import Lean.Elab.Tactic
 
 open Lean
-open Lean.Elab.Tactic
 open Lean.Meta
+open Lean.Elab.Tactic hiding Tactic
+open Lean.Elab.Term (elabTerm)
+open Lean.Syntax (Tactic)
+open Lean.Parser.Tactic (tacticSeq)
 
 namespace Jrlean
 
 -- Define the syntax
 syntax (name := laterTactic) "later" : tactic
-syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq : term
+syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq+ : term
 
-meta instance : MonadStateOf (List LaterContext) TacticM where
+meta instance [Monad m] [MonadEnv m] : MonadStateOf (List LaterContext) m where
   get := return laterEnvExtension.getState (← getEnv)
   set s := modifyEnv (laterEnvExtension.setState · s)
   modifyGet f := do
@@ -28,26 +31,20 @@ meta instance : MonadStateOf (List LaterContext) TacticM where
     return ret
 
 -- When we enter a `later` block, we push a new `LaterContext` onto the stack, and when done, we pop.
-meta def onEnter (termGoal : MVarId) : TacticM Unit := do
-  let ctx : LaterContext := { term := termGoal }
+meta def onEnter (proofs : List Tactic) : CoreM Unit := do
+  let ctx : LaterContext := { proofs := proofs }
   modify (ctx :: ·)
 
-meta def onSwitchToProof : TacticM Unit := do
-  match (← get) with
-  | [] => throwError "Not inside a `later` block - something went wrong"
-  | head :: tail => do
-    if head.inProofs then
-      throwError "Already inside a proof section of a `later` block - something went wrong"
-    appendGoals head.thingsToProve
-    set of { head with inProofs := true } :: tail
-
-meta def onExit : TacticM Unit := do
+meta def onExit : CoreM Unit := do
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: tail =>
-    if not head.inProofs then
-      throwError "Exiting a `later` block without entering the proof section - something went wrong"
+    checkDone head
     set tail
+where checkDone
+  | { proofs := [] } => pure ()
+  | { proofs := proofs } =>
+    throwError m!"Later block is not done - there are {proofs.length} unused proofs."
 
 meta def top : TacticM LaterContext := do
   match (← get) with
@@ -59,30 +56,31 @@ meta def modifyTop (f : LaterContext → LaterContext) : TacticM Unit := do
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: tail => set (f head :: tail)
 
+meta def popProof : OptionT TacticM Tactic := do
+  let top ← top
+  match top.proofs with
+  | [] => failure
+  | head :: tail => do
+    if top.proofs.isEmpty then failure
+    modifyTop fun _ => { top with proofs := tail }
+    return head
+
 meta def later : TacticM Unit := do
-  let mvar ← getMainGoal
-  replaceMainGoal [] -- This just gets rid of the main goal.
-  (← top).term.withContext do modifyTop fun ctx =>
-    { ctx with thingsToProve := mvar :: ctx.thingsToProve }
+  dbg_trace "later tactic called"
+  let some proof ← popProof
+    | throwError "No more proofs left in the `later` block."
+  withMainContext do focusAndDone do evalTactic proof
 
 elab_rules : tactic | `(tactic| later) => later
 
 elab_rules <= expectedType
-  | `($term:term with laters $tactics) => do
-    let goal ← mkFreshExprMVar expectedType
-    let goalMVarId := goal.mvarId!
-    let unsolvedGoals ← run goalMVarId do
-      let decl ← goalMVarId.getDecl
-      let goalType := decl.type
-      onEnter goalMVarId
-        let term ← elabTerm term goalType
-        closeMainGoal `exact term (checkUnassigned := false)
-      onSwitchToProof
-      evalTacticSeq tactics
-      onExit
-    if unsolvedGoals.isEmpty then
-      throwError "Leftover goals."
-    return goal
+  | `($term:term with laters $tacticSeqs:tacticSeq*) => do
+    onEnter <| Array.toList <| ← tacticSeqs.mapM fun t => `(tactic| ($t))
+    dbg_trace "later block entered"
+    let ret ← elabTerm term expectedType
+    dbg_trace "exit later block"
+    onExit
+    return ret
 
 -- Use `later` in `get_elem_tactic`
 macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| later)
