@@ -6,12 +6,14 @@ import Jrlean.Of
 -- Lean
 public meta import Lean.Elab.Tactic
 
+-- Wildcard lean imports
 open Lean
 open Lean.Meta
 open Lean.Elab.Tactic hiding Tactic
-open Lean.Elab.Term (elabTerm)
-open Lean.Syntax (Tactic)
+open Lean.Elab.Term
+-- Specific lean imports
 open Lean.Parser.Tactic (tacticSeq)
+open Lean.Syntax (Tactic)
 
 namespace Jrlean
 
@@ -19,7 +21,9 @@ namespace Jrlean
 syntax (name := laterTactic) "later" : tactic
 syntax (name := laterBlock) term:min atomic(" with " "laters ") tacticSeq+ : term
 
-meta instance [Monad m] [MonadEnv m] : MonadStateOf (List LaterContext) m where
+variable {m} [Monad m] [MonadEnv m] [MonadLog m] [MonadError m] [AddMessageContext m] [MonadOptions m]
+
+meta instance : MonadStateOf (List LaterContext) m where
   get := return laterEnvExtension.getState (← getEnv)
   set s := modifyEnv (laterEnvExtension.setState · s)
   modifyGet f := do
@@ -31,12 +35,12 @@ meta instance [Monad m] [MonadEnv m] : MonadStateOf (List LaterContext) m where
     return ret
 
 -- When we enter a `later` block, we push a new `LaterContext` onto the stack, and when done, we pop.
-meta def onEnter (proofs : List Tactic) : CoreM Unit := do
+meta def onEnter (proofs : List Tactic) : m Unit := do
   logInfo "onEnter called"
   let ctx : LaterContext := { proofs := proofs }
   modify (ctx :: ·)
 
-meta def onExit : CoreM Unit := do
+meta def onExit : m Unit := do
   logInfo "onExit called"
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
@@ -48,17 +52,17 @@ where checkDone
   | { proofs := proofs } =>
     throwError m!"Later block is not done - there are {proofs.length} unused proofs."
 
-meta def top : TacticM LaterContext := do
+meta def top : m LaterContext := do
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: _ => return head
 
-meta def modifyTop (f : LaterContext → LaterContext) : TacticM Unit := do
+meta def modifyTop (f : LaterContext → LaterContext) : m Unit := do
   match (← get) with
   | [] => throwError "Not inside a `later` block - something went wrong"
   | head :: tail => set (f head :: tail)
 
-meta def popProof : OptionT TacticM Tactic := do
+meta def popProof : OptionT m Tactic := do
   let top ← top
   match top.proofs with
   | [] => failure
@@ -67,24 +71,28 @@ meta def popProof : OptionT TacticM Tactic := do
     modifyTop fun _ => { top with proofs := tail }
     return head
 
-meta def later : TacticM Unit := do
+public meta def later : TacticM Unit := do
   logInfo "later tactic called"
-  let some proof ← popProof
+  let some proof ← popProof (m:=TacticM)
     | throwError "No more proofs left in the `later` block."
   withMainContext do focusAndDone do evalTactic proof
 
+/-- Elaborate a term in the context of the given "laters" (proofs). -/
+public meta def withLaters (term : Term) (proofs : List Tactic) (expectedType? : Option Expr)
+    : TermElabM Expr := do
+  onEnter proofs
+  try
+    let ret ← elabTerm term expectedType?
+    return ret
+  finally
+    onExit
+
 elab_rules : tactic | `(tactic| later) => later
 
-elab "on " "enter " proofs:tactic* : tactic => onEnter proofs.toList
-
-macro_rules
+elab_rules <= expectedType
   | `(term| $term:term with laters $tacticSeqs:tacticSeq*) => do
     let proofs ← tacticSeqs.mapM fun t => `(tactic| ($t))
-    `( by
-        on enter $proofs*
-        exact $term
-        run_tac onExit
-        done )
+    withLaters term proofs.toList expectedType
 
 elab_rules <= expectedType
   | `($term:term with laters $tacticSeqs:tacticSeq*) => do
