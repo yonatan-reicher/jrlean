@@ -12,6 +12,7 @@ import Jrlean.Coc.TermOffsetingLemmas
 import Jrlean.Assumption
 import Jrlean.ByContra
 import Jrlean.SetTactic
+import Jrlean.AndTactic
 
 namespace Jrlean.Coc
 
@@ -67,9 +68,11 @@ theorem subst_sort : s[x:=a] = s := by
   cases s using isSort_cases
   all_goals rfl
 
+attribute [local grind .] Option.isSome_iff_exists
+
 @[grind =, simp]
 theorem subst_of_not_mem_freeVars (h_not_mem : x ∉ a.freeVars) : a[x:=b] = (a↓x).get! := by
-  induction a
+  induction a generalizing x
   iterate 2 next => simp only [subst_sort, Term.offsetOut_sort, Option.get!_some] -- prop | type
   case var v =>
     change x ∉ [v] at h_not_mem
@@ -79,10 +82,31 @@ theorem subst_of_not_mem_freeVars (h_not_mem : x ∉ a.freeVars) : a[x:=b] = (a�
     grind only [usr Var.offsetOut_eq_some_of_neq, = Option.map_some, = Option.get_some,
       = Option.get!_some, #f94d]
   case app f arg ih_f ih_arg =>
+    -- Deal with the assumption that x is not in the free variables of f of arg
+    have ⟨h_mem_f, h_mem_arg⟩ : x ∉ f.freeVars ∧ x ∉ arg.freeVars := by simpa [Term.freeVars] using h_not_mem
+    have ⟨h_isSome_f, h_isSome_arg⟩ : (f↓x).isSome ∧ (arg↓x).isSome := ⟨Term.offsetOut_isSome_of h_mem_f, Term.offsetOut_isSome_of h_mem_arg⟩
+    -- rw [Option.eq_some_of_isSome this.2] at this
+    -- repeat rw [Option.isSome_iff_exists] at this
+    -- obtain ⟨⟨f', h_f⟩, ⟨arg', h_arg⟩⟩ := this
+    -- Use the induction hypotheses
     unfold Term.subst
-    rw [ih_f, ih_arg]
-    simp only [Term.offsetOut_app]
-    grind
+    rw [ih_f h_mem_f, ih_arg h_mem_arg]
+    clear ih_f ih_arg
+    clear h_mem_f h_mem_arg h_not_mem
+    -- The actual proof
+    rw [Term.offsetOut_app]
+    grind only [Option.isSome_iff_exists, = Term.offsetOut.notation, = Term.offsetOut_app,
+      = Term.offsetOut.eq_4, = Option.bind_apply, = Term.offsetOut.eq_1, = Option.bind_some,
+      = Option.get!_some, = Term.offsetOut.eq_2, = Option.map_some, #17b2, #5740, #561f,
+      #561f8aa956314c44, #6be5, #6be59dd89fba79d4, #574055ad259ec26a]
+  case binder k y ty body ih_ty ih_body =>
+    rw [Term.subst]
+    rw [Term.offsetOut_binder]
+    -- Setup some hard truths
+    rw [Term.freeVars] at h_not_mem
+    have : x ∉ ty.freeVars := by grind only [Term.freeVars, = List.mem_append]
+    have : (body↓y).isSome := sorry
+    have : x ∉ (body↓y).get!.freeVars := sorry
     sorry
 
 theorem subst_eq_sort [IsSort s]
