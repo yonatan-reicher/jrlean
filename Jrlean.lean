@@ -8,6 +8,7 @@ public import Jrlean.Confluence
 public import Jrlean.SetTactic
 public import Jrlean.ByContra
 public import Jrlean.AndTactic
+public import Jrlean.DAnd
 public import Jrlean.InstanceInfer
 public import Jrlean.CollectionLemmas
 public import Jrlean.UniqueName
