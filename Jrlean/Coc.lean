@@ -13,7 +13,7 @@ public import Jrlean.Coc.VarDec
 public import Jrlean.Coc.ShadowedLemmas
 public import Jrlean.Coc.ShadowsLemmas
 public import Jrlean.Coc.VarIncLemmas
--- public import Jrlean.Coc.VarDecLemmas
+public import Jrlean.Coc.VarDecLemmas
 
 public import Jrlean.Coc.Offseting
 public import Jrlean.Coc.VarOffseting
