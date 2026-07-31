@@ -5,6 +5,16 @@ public import Jrlean.Coc.VarDecl
 public import Jrlean.Coc.Var
 public import Jrlean.Coc.VarConversions
 
+-- Var operators
+public import Jrlean.Coc.Shadowed
+public import Jrlean.Coc.Shadows
+public import Jrlean.Coc.VarInc
+public import Jrlean.Coc.VarDec
+public import Jrlean.Coc.ShadowedLemmas
+public import Jrlean.Coc.ShadowsLemmas
+public import Jrlean.Coc.VarIncLemmas
+-- public import Jrlean.Coc.VarDecLemmas
+
 public import Jrlean.Coc.Offseting
 public import Jrlean.Coc.VarOffseting
 public import Jrlean.Coc.VarOffsetingLemmas

@@ -122,15 +122,15 @@ theorem Var.offsetOut_eq_none_iff : v↓v' = none ↔ v = v' := by
     · instantiate only [= Option.isSome_none]
     · instantiate only [= offsetOut_eq_none]
 
-theorem Var.offsetOut_bind_offsetOut : (x↓y).bind (·↓z) = (x↓(z↑y)).bind (·↓y) := by
+theorem Var.offsetOut_bind_offsetOut : (x↓y).bind (·↓z) = (x↓(z↑y)).bind (·↓(y↑z)) := by
   rw [Var.bind_offsetOut_eq_ite]
   split
-  · subst y
-    symm
-    rw [Option.bind_eq_none_iff]
-    intro x' h
-    rw [offsetOut_eq_none_iff]
-    sorry
+  · sorry
+  -- · subst y
+  --   symm
+  --   rw [Option.bind_eq_none_iff]
+  --   intro x' h
+  --   rw [offsetOut_eq_none_iff]
   · sorry
 
 /-- A very obvious theorem, that makes grind case-split when needed. -/

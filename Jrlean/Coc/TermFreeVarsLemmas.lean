@@ -56,14 +56,14 @@ theorem freeVars_offsetOut
     congr
     funext z
     conv => rhs; rw [Var.offsetOut_bind_offsetOut]
-    exact?
-    rw [Var.offsetIn_offsetOut_eq_ite]
-    grind
-    simp only [List.filterMap_append, List.append_cancel_left_eq]
-    rfl
-    rw [ih_ty, ih_body]
-    simp
-    sorry
+    repeat sorry
+    -- rw [Var.offsetIn_offsetOut_eq_ite]
+    -- grind
+    -- simp only [List.filterMap_append, List.append_cancel_left_eq]
+    -- rfl
+    -- rw [ih_ty, ih_body]
+    -- simp
+    -- sorry
 
 theorem freeVars_offsetIn
     : (t↑x).freeVars = t.freeVars.map (·↑x) := by
@@ -93,9 +93,8 @@ theorem freeVars_offsetIn
     if h_y : z = y then
       subst z
       rw [Var.offsetOut_eq_none, Option.map_none]
-      grind
+      sorry
     else
       obtain ⟨z', h_z'⟩ := Var.offsetOut_eq_some_of_neq h_y
       rw [h_z', Option.map_some]
-      
-
+      sorry
