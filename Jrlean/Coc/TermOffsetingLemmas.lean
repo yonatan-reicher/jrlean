@@ -6,6 +6,7 @@ public import Jrlean.Coc.Sort
 public import Jrlean.Coc.TermFreeVars
 
 import Jrlean.Coc.VarOffsetingLemmas
+import Jrlean.SetTactic
 
 namespace Jrlean.Coc
 
@@ -45,6 +46,28 @@ attribute [local grind .]
   conv => rhs; rhs; intro a; rw [Option.map_eq_bind]
   rfl
 
+@[grind _=_, simp]
+theorem Term.offsetOut_app_isSome
+    : ((a b)↓v).isSome ↔ (a↓v).isSome ∧ (b↓v).isSome := by
+  rw [offsetOut_app]
+  set a' := a↓v
+  set b' := b↓v
+  cases a' <;> cases b'
+  all_goals
+    open Option in
+    grind only [= isSome_bind, = bind_some, = isSome_some, = isSome_none, = any_some, =
+    isSome_map, bind_none, bind_some, map_none, map_some, any_some, isSome_bind, isSome_map]
+
+@[grind =, simp]
+theorem Term.offsetOut_app_of_isSome
+    (h : ((a b)↓v).isSome)
+    : (a b)↓v = some ((a↓v).get! (b↓v).get!) := by
+  rw [offsetOut_app]
+  rw [offsetOut_app_isSome] at h
+  obtain ⟨h₁, h₂⟩ := h
+  rw [Option.isSome_iff_exists] at h₁ h₂
+  grind only [= Option.get!_some, = Option.bind_some, = Option.map_some, #3363, #8957]
+
 @[grind _=_, simp] theorem Term.offsetIn_binder
     {k v v' ty body}
     : (binder k v' ty body)↑v = binder k v' (ty↑v) (body↑(v↑v')) := rfl
@@ -55,6 +78,34 @@ attribute [local grind .]
   conv => rhs; arg 2; intro ty'; rw [Option.map_eq_bind]
   rfl
 
+@[grind =, simp]
+theorem Term.offsetOut_binder_isSome
+    {k v v' ty body}
+    : ((binder k v' ty body)↓v).isSome ↔ (ty↓v).isSome ∧ (body↓(v↑v')).isSome := by
+  rw [offsetOut_binder]
+  set ty' := ty↓v
+  set body' := body↓(v↑v')
+  cases ty' <;> cases body'
+  all_goals
+    open Option in
+    grind only [= isSome_bind, = bind_some, = isSome_some, = isSome_none, = any_some, =
+    isSome_map, bind_none, bind_some, map_none, map_some, any_some, isSome_bind, isSome_map]
+
+@[grind _=_, simp]
+theorem Term.offsetOut_binder_of_isSome
+    {k v v' ty body}
+    (h : ((binder k v' ty body)↓v).isSome)
+    : (binder k v' ty body)↓v = some (binder k v' (ty↓v).get! (body↓(v↑v')).get!) := by
+  rw [offsetOut_binder]
+  rw [offsetOut_binder_isSome] at h
+  obtain ⟨h₁, h₂⟩ := h
+  rw [Option.isSome_iff_exists] at h₁ h₂
+  obtain ⟨ty', h₁⟩ := h₁
+  obtain ⟨body', h₂⟩ := h₂
+  rw [h₁, h₂]
+  simp only [Option.map_some, Option.bind_some, Option.get!_some]
+
+@[grind =, grind →, simp]
 theorem Term.offsetOut_isSome_of
     (h : v ∉ t.freeVars)
     : (t↓v).isSome := by
@@ -92,7 +143,7 @@ theorem Term.offsetOut_isSome_of
       · exfalso
         rename (v↑v')↓v' ≠ some v => h
         apply h; clear h
-        exact Var.offsetIn_offsetOut
+        exact Var.offsetOut_offsetIn
     clear ih_ty ih_body h
     rw [Option.isSome_iff_exists] at h₁ h₂
     obtain ⟨ty',h₁⟩ := h₁

@@ -23,36 +23,30 @@ variable {a b c : Term'}
 variable {s : Term'} [IsSort s]
 variable {x : Var}
 
+attribute [local grind .]
+  Var.subst
+  Term.subst
+
 @[grind =, simp]
 theorem var_subst_eq
 {x : Var'} {r}
 : x.subst x r = r := by
-  simp only [Var.subst, Var.offsetOut.simp_notation, Var.offsetOut]
-  grind only [= Var.offsetOutDeBruijn.eq_1, = Option.map_none, = Option.getD_none,
-    = Var.offsetOutNamed.eq_1, #f010]
+  grind =>
+    instantiate only [Var.subst]
+    instantiate only [= Var.offsetOut_eq_none_of_eq]
+    instantiate only [= Option.map_none]
+    instantiate only [= Option.getD_none]
 
 @[grind =, simp]
 theorem var_subst_neq
 {v : Var'}
 (h_neq : v ≠ x)
 : v.subst x r = (v↓x).get! := by
-  -- By the definition of subst, we just need to show it's not none
-  show (v↓x |>.map var |>.getD r) = (v↓x).get!
-  suffices v↓x ≠ none by
-    have : ∃ v', v↓x = some v' := Option.ne_none_iff_exists'.mp this
-    grind only [= id.eq_1, = Option.get!_some, = Option.map_some, = Option.getD_some, #4c12]
-  -- We need to treat each case differently sadly
-  cases varKind
-  · simp only [Var.offsetOut.simp_notation, Var.offsetOut, Var.offsetOutDeBruijn, Var.toNat,
-    gt_iff_lt, ne_eq, ite_eq_left_iff, not_imp]
-    grind only
-  · simp [Var.offsetOutNamed]
-    if h_name : v.name = x.name then
-      have h_depth: v.depth ≠ x.depth := by grind only [NamedVar.ext]
-      simp [h_name, h_depth]
-      grind only [→ eq_prop_or_type_of_isSort, = Option.map_some, = Option.getD_some, #baf6]
-    else
-      simp [h_name]
+  grind =>
+    instantiate only [Var.subst, usr Var.offsetOut_eq_some_of_neq]
+    cases #f94d <;>
+      instantiate only [= Option.map_some, = Option.get!_some] <;>
+        instantiate only [= Option.getD_some]
 
 @[grind =, simp]
 theorem subst_var_eq : x[x:=a] = a := by simp [Term.subst]
@@ -124,26 +118,32 @@ theorem subst_eq_sort [IsSort s]
     else
       -- Not replaced! that means it was already s
       left; show v = s
-      simp only [ne_eq, h_v, not_false_eq_true, var_subst_neq, Var.offsetOut.simp_notation] at h
-      grind only [→ eq_prop_or_type_of_isSort]
+      grind only [→ eq_prop_or_type_of_isSort, = var_subst_neq]
   -- rest is candy
   all_goals
     cases s using isSort_cases
     all_goals contradiction
 
+#reduce
+  let t : @Term .deBruijn := Term.var 0 |>.app (Term.var 1) |>.app (Term.var 2)
+  t[0 := Term.prop][0 := Term.type]
+
 theorem double_subst
     (h_x_neq_y : x ≠ y)
     (h_not_mem : y ∉ a.freeVars)
-    : t[y:=b][(x↓y).get!:=a] = t[x:=a][y:=b[x:=a]] := by
+    -- TODO: This is wrong. Need to figure this out on paper.
+    -- First write down some examples, then figure out the general case.
+    : t[y:=b][(x↓y).get!:=a] = t[x:=a↑(y↓x).get!][(y↓x).get!:=b[(x↓y).get!:=a]] := by
   induction t
   iterate 2 next => simp only [subst_sort] -- prop | sort
   case var z =>
     apply distinguish z x y h_x_neq_y <;> intro h₁ h₂ ; subst_vars
+    case eq_y => grind only [Term.subst, = subst_var_eq, = var_subst_neq]
     case eq_x =>
-      simp [h_x_neq_y]
-      simp_all
-      rw [subst_var_neq, subst_var_eq]
-      simp
+      simp_all [Option.get_eq_get!]
+      show a = (a↑(y↓z).get!)[(y↓z).get!:=b[(z↓y).get!:=a]]
+      show a = (a↑(y↓z).get!)[(y↓z).get!:=b[(z↓y).get!:=a]]
+      done
 
     case x =>
     · subst y z

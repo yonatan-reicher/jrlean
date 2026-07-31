@@ -59,18 +59,3 @@ def Var.offsetOut (v unbound : @Var varKind) : Option Var' :=
 instance : Offset varKind Var' where
   offsetIn v bound := v.offsetIn bound
   offsetOut v unbound := v.offsetOut unbound
-
--- Notation
-@[simp] theorem Var.offsetIn.simp_notation (v bound : Var') : v↑bound = v.offsetIn bound := rfl
-@[simp] theorem Var.offsetOut.simp_notation (v bound : Var') : v↓bound = v.offsetOut bound := rfl
-
--- Var kinds
-@[simp] theorem Var.offsetIn.simp_deBruijn (v bound : @Var .deBruijn)
-    : v.offsetIn bound = v.offsetInDeBruijn bound := rfl
-@[simp] theorem Var.offsetOut.simp_deBruijn (v bound : @Var .deBruijn)
-    : v.offsetOut bound = v.offsetOutDeBruijn bound := rfl
-
-@[simp] theorem Var.offsetIn.simp_named (v bound : @Var .named)
-    : v.offsetIn bound = v.offsetInNamed bound := rfl
-@[simp] theorem Var.offsetOut.simp_named (v bound : @Var .named)
-    : v.offsetOut bound = v.offsetOutNamed bound := rfl
