@@ -17,6 +17,8 @@ public import Jrlean.Coc.VarDecLemmas
 
 public import Jrlean.Coc.Offseting
 public import Jrlean.Coc.VarOffseting
+public import Jrlean.Coc.VarOffsetInLemmas
+public import Jrlean.Coc.VarOffsetOutLemmas
 public import Jrlean.Coc.VarOffsetingLemmas
 public import Jrlean.Coc.TermOffseting
 public import Jrlean.Coc.TermOffsetingLemmas

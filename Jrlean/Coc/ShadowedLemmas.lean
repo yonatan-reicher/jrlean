@@ -45,6 +45,9 @@ variable {x : Var'}
 @[grind _=_, simp]
 theorem not_shadowed_iff_unshadowed : ¬x.Shadowed ↔ x.Unshadowed := by
   grind only [Unshadowed.mk]
+@[grind _=_, simp]
+theorem not_unshadowed_iff_shadowed : ¬x.Unshadowed ↔ x.Shadowed := by
+  grind only [Unshadowed.mk]
 @[simp]
 theorem false_of_shadowed_of_unshadowed (h₁ : x.Shadowed) (h₂ : x.Unshadowed) : False := by
   grind only [Unshadowed.mk, Shadowed.mk]

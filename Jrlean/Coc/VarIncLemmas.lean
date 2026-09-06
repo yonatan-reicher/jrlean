@@ -58,3 +58,10 @@ theorem shadows_inc_iff_shadowsEq : y < x++ ↔ y ≤ x := by
 
 @[grind =, simp]
 theorem eq_inc {n} {d : Nat} : (⟨n, d.succ⟩ : @Var .named) = ((⟨n, d⟩ : @Var .named)++ : @Var .named) := rfl
+
+@[grind =, simp]
+theorem shadows_inc_inc : x++ < y++ ↔ x < y := by
+  grind only [= shadows_inc_iff_shadowsEq, shadowsEq_inc_iff_shadows]
+@[grind =, simp]
+theorem shadowsEq_inc_inc : x++ ≤ y++ ↔ x ≤ y := by
+  grind only [= shadows_inc_iff_shadowsEq, shadowsEq_inc_iff_shadows]

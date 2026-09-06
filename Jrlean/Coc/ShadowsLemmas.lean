@@ -16,6 +16,24 @@ variable {x y z : Var'}
 
 attribute [local grind] shadows VarKind
 
+@[grind ., simp]
+theorem shadows_irrefl : ¬(x < x) := by grind only [shadows]
+instance : Std.Irrefl (@shadows varKind) := ⟨fun _ => shadows_irrefl⟩
+
+@[simp]
+theorem shadowsEq_refl : x ≤ x := by grind only [shadows]
+instance : Std.Refl (@shadowsEq varKind) := ⟨fun _ => shadowsEq_refl⟩
+grind_pattern shadowsEq_refl => x < x
+
+/-- This is not actually anti-symmetry, but close enough. -/
+@[grind ., simp]
+theorem shadows_antisymm (h : x < y) : ¬(y < x) := by grind only [shadows, #aa1a]
+
+@[grind ., simp]
+theorem shadowsEq_antisymm (h₁ : x ≤ y) (h₂ : y ≤ x) : x = y := by grind only [shadows, #aa1a]
+
+instance : Std.Antisymm (@shadowsEq varKind) := ⟨by exact fun _ _ h₁ h₂ => shadowsEq_antisymm h₁ h₂⟩
+
 @[grind →, simp]
 theorem neq_of_shadows (h : x < y) : x ≠ y := by grind only [shadows]
 
@@ -27,6 +45,8 @@ instance : @Trans Var' Var' Var' shadows shadows shadows := ⟨shadows_trans⟩
 instance : @Trans Var' Var' Var' shadowsEq shadowsEq shadowsEq := ⟨shadowsEq_trans⟩
 instance : @Trans Var' Var' Var' shadowsEq shadows shadowsEq := ⟨shadowsEq_left_trans⟩
 instance : @Trans Var' Var' Var' shadows shadowsEq shadowsEq := ⟨shadowsEq_right_trans⟩
+
+-- instance : Std.IsPartialOrder
 
 @[grind →, simp]
 theorem shadowed_of_shadows (h : x < y) : y.Shadowed := by
@@ -52,3 +72,7 @@ theorem shadows_iff_name_eq_and_depth_lt {x y : @Var .named}
 @[grind →, simp]
 theorem not_shadows_of_name_neq {x y : @Var .named} (h : x.name ≠ y.name) : ¬(x < y) := by
   grind only [= shadows_iff_name_eq_and_depth_lt]
+
+@[grind =>, simp]
+theorem not_shadows_of_unshadowed (h : y.Unshadowed) : ¬(x < y) := by
+  grind only [= not_unshadowed_iff_shadowed, → shadowed_of_shadows]

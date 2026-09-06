@@ -70,6 +70,27 @@ theorem inc_dec (h : x.Shadowed) : (x-)++ = x := by
     simp_all only [shadowed_iff_zero_lt_depth, dec_eq_with_pred_depth, Nat.pred_eq_sub_one]
     grind only [inc]
 
+@[grind →, simp]
+theorem shadowed_dec (h : (x-).Shadowed) : x.Shadowed := by
+  grind only [=_ not_unshadowed_iff_shadowed, usr dec_eq_iff]
+
+@[grind →, simp]
+theorem unshadowed_dec (h : x.Unshadowed) : (x-).Unshadowed := by
+  grind only [=_ not_unshadowed_iff_shadowed, usr dec_eq_iff]
+
+@[grind ., simp]
+theorem shadows_dec (h : x.Shadowed) : x- < x := by
+  suffices x-++ < (x++) by
+    grind only [→ neq_of_shadows, = shadows_inc_iff_shadowsEq, = inc_inj, = inc_dec,
+      → shadowsEq_right_trans, shadows_inc]
+  grind only [= shadows_inc_iff_shadowsEq, = inc_dec]
+@[grind ., simp]
+theorem shadowsEq_dec : x- ≤ x := by
+  grind only [shadows_dec, usr dec_eq_iff, = not_shadowed_iff_unshadowed]
+@[grind =, simp]
+theorem shadows_dec_iff : x- < x ↔ x.Shadowed := by
+  grind only [→ shadowed_of_shadows, shadows_dec]
+
 @[grind =, simp]
 theorem shadows_dec_iff_shadowsEq
     (h_x : x.Shadowed)
@@ -77,15 +98,31 @@ theorem shadows_dec_iff_shadowsEq
   suffices (x-)++ < y++ ↔ x++ ≤ (y++) by
     grind only [shadowsEq_inc_iff_shadows, = shadows_inc_iff_shadowsEq, = inc_inj, = inc_dec, #60ae]
   grind only [shadowsEq_inc_iff_shadows, = shadows_inc_iff_shadowsEq, = inc_inj, = inc_dec, #1e10]
+@[grind →, simp]
+theorem shadows_dec_to (h : x- < y) : x ≤ y := by
+  grind only [= shadows_dec_iff_shadowsEq, usr dec_eq_iff, =_ not_unshadowed_iff_shadowed]
 
 @[grind =>, simp]
 theorem shadowsEq_dec_iff_shadows
-    (h_x : x.Shadowed)
+    (h_y : y.Shadowed)
     : x ≤ y- ↔ x < y := by
   suffices x++ ≤ (y-)++ ↔ x++ < (y++) by
     grind only [shadowsEq_inc_iff_shadows, = shadows_inc_iff_shadowsEq, = inc_inj, = inc_dec, #60ae]
-  grind only [shadowsEq_inc_iff_shadows, = shadows_inc_iff_shadowsEq, = inc_inj, inc_neq, = inc_dec,
-    usr dec_eq_iff, = not_shadowed_iff_unshadowed, → shadowed_of_shadows, shadows, inc,
-    = shadowed_iff_zero_lt_depth, = dec_eq_with_pred_depth, = unshadowed_iff_depth_eq_zero,
-    → not_shadows_of_name_neq, instShadowedMkSucc, → shadowsEq_right_trans, #7a9c, #3b8c, #aa1a,
-    #b5d9]
+  grind only [= shadows_inc_iff_shadowsEq, = inc_dec]
+@[grind →, simp]
+theorem shadowsEq_dec_to (h : x ≤ y-) : x ≤ y := by
+  grind only [→ shadowed_of_shadows, usr dec_eq_iff, => shadowsEq_dec_iff_shadows, → shadowed_dec,
+    =_ not_unshadowed_iff_shadowed]
+
+@[grind =, simp]
+theorem shadows_dec_dec (h : x.Shadowed) : x- < y- ↔ x < y := by
+  simp
+  grind only [→ shadowed_of_shadows, → shadowsEq_dec_to, usr dec_eq_iff,
+    =_ not_unshadowed_iff_shadowed, → shadowsEq_trans, => shadowsEq_dec_iff_shadows,
+    shadowsEq_antisymm, shadowsEq_dec, #dadb]
+@[grind =, simp]
+theorem shadowsEq_dec_dec (h_x : x.Shadowed) (h_y : y.Shadowed) : x- ≤ y- ↔ x ≤ y := by
+  grind only [= shadows_dec_dec, = dec_inj, #15ca]
+@[grind =, simp]
+theorem shadowsEq_dec_dec' (h_x : x.Unshadowed) (h_y : y.Shadowed) : x- ≤ y- ↔ x < y := by
+  grind only [=> shadowsEq_dec_iff_shadows, usr dec_eq_iff]

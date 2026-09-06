@@ -9,8 +9,8 @@ public class Offset (varKind : VarKind) (α : Type) where
   offsetIn : α → Var' → α
   offsetOut : α → Var' → Option α
 
-infix:arg "↑" => Offset.offsetIn
-infix:arg "↓" => Offset.offsetOut
+infixl:arg "↑" => Offset.offsetIn
+infixl:arg "↓" => Offset.offsetOut
 
 /--
 info:
