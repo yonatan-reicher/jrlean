@@ -5,7 +5,7 @@ Authors: Robin Arnez
 -/
 module
 
-public import Jrlean.Float.Basic
+public import Jrlean.Float.Batteries.Basic
 import all Init.Data.OfScientific -- remove when Float.ofNat is exposed
 
 @[expose] public section

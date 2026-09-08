@@ -1,9 +1,10 @@
 module
-public import Jrlean.Float.Basic
-public import Jrlean.Float.Lemmas
-public import Jrlean.Float.Rat
+public import Jrlean.Float.Batteries.Basic
+public import Jrlean.Float.Batteries.Lemmas
+public import Jrlean.Float.Batteries.Rat
+public import Jrlean.Float.OfNat
 
 /-!
-This module and it's sub-modules are copied over from Batteries:
+Some of this module's sub-modules are originally copied over from Batteries:
 https://github.com/leanprover-community/batteries/blob/main/Batteries/Data/Float.lean
 -/

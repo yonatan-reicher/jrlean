@@ -5,7 +5,7 @@ Authors: Mario Carneiro
 -/
 module
 
-public import Jrlean.Float.Basic
+public import Jrlean.Float.Batteries.Basic
 
 @[expose] public section
 
