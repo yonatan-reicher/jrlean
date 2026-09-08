@@ -26,8 +26,9 @@ private theorem simp : v↓v' = v.offsetOut v' := rfl
 theorem Var.offsetOut_isSome_of_neq
     (h : v ≠ v')
     : (v↓v').isSome := by
-  grind only [= eq_2, = simp, offsetOut, offsetOutDeBruijn, = Option.isSome_some, offsetOutNamed,
-    NamedVar.ext, #aa1a, #616e, #75b3, #9840]
+  grind only
+    [= eq_2, = simp, offsetOut, offsetOutDeBruijn, = Option.isSome_some, offsetOutNamed,
+    NamedVar.ext]
 grind_pattern Var.offsetOut_isSome_of_neq => v↓v'
 
 @[grind =, simp]

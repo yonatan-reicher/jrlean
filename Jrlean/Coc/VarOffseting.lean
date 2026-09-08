@@ -40,7 +40,7 @@ def Var.offsetIn (v bound : @Var varKind) : Var' :=
 @[grind]
 def Var.offsetOutDeBruijn (v : DVar) (unbound : DVar) : Option DVar :=
   if v = unbound then none
-  else if v.toNat > unbound then some of v.toNat - 1
+  else if v.toNat > unbound.toNat then some of v.toNat - 1
   else some v
 
 @[grind]
