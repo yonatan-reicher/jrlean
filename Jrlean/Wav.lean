@@ -8,7 +8,7 @@ namespace Jrlean
 open IO.FS (Handle)
 open System.Platform (isOSX)
 
-public def mkWaveFile
+public def mkWavFile
     (frames : Nat)
     (framesPerSecond : Float)
     (sound : Fin frames → UInt8)
@@ -78,10 +78,10 @@ public def playWavFile (f : IO.FS.Stream) : IO Unit := do
       IO.println exitCode
       IO.println (← child.stderr.readToEnd)
 
-#eval do (← mkWaveFile 3 441000 fun i => .ofNat (i % 255)).readBinToEnd
+-- #eval do (← mkWaveFile 3 441000 fun i => .ofNat (i % 255)).readBinToEnd
 -- #eval show IO _ from do
 --   let b : IO.Ref IO.FS.Stream.Buffer ← IO.mkRef ⟨.empty, 0⟩
 --   playWavFile (.ofBuffer b)
-#eval do
-  .ofHandle (← mkWaveFile 1000 8000 fun i => .ofNat (i % 255))
-  |> playWavFile
+-- #eval do
+--   .ofHandle (← mkWaveFile 1000 8000 fun i => .ofNat (i % 255))
+--   |> playWavFile
