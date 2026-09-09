@@ -75,8 +75,11 @@ public def playWavFile (f : IO.FS.Stream) : IO Unit := do
         stderr := .piped
       }
       let exitCode ← child.wait
-      IO.println exitCode
-      IO.println (← child.stderr.readToEnd)
+      if exitCode != 0 then
+        let err ← child.stderr.readToEnd
+        throw of .userError s!"
+          afplay exited with exit code '{exitCode}' and wrote: '{err.trimAscii}'
+        ".trimAscii.copy
 
 -- #eval do (← mkWaveFile 3 441000 fun i => .ofNat (i % 255)).readBinToEnd
 -- #eval show IO _ from do

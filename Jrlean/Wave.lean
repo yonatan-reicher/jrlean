@@ -8,7 +8,7 @@ public section
 inductive Wave where
   | sin
   | square
-  deriving Repr
+  deriving DecidableEq, Inhabited, Repr
 
 def Float.pi := 3.141592653589793
 
