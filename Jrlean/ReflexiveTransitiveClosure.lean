@@ -13,7 +13,6 @@ public section
 
 variable {α : Sort u}
 
-@[grind]
 inductive ReflTransClosure (r : Relation α α) : Relation α α where
 | refl {a} : ReflTransClosure r a a
 | leftCons : r a b → ReflTransClosure r b c → ReflTransClosure r a c
@@ -32,7 +31,8 @@ variable {a b c : α}
 
 section Refl
 
-attribute [refl] refl
+attribute [refl, grind .] refl
+attribute [      grind .] leftCons
 
 instance : Std.Refl r* where refl _ := refl
 
@@ -43,7 +43,9 @@ section Trans
 @[grind →, grind <=, grind .]
 theorem trans : (r*) a b → (r*) b c → (r*) a c := by
   intro left right
-  induction left <;> grind
+  induction left
+  · assumption
+  · grind
 
 @[grind .]
 theorem rightCons : (r*) a b → r b c → (r*) a c := by grind
@@ -85,7 +87,7 @@ theorem eq_of_subrelation_of_subrelation {r₁ r₂ : Relation α α}
 section Reverse
 
 @[simp, grind =]
-theorem rev_eq_rev : (r*).rev = r.rev* := by
+theorem rev_eq_rev : r.rev* = (r*).rev := by
   two_directions
   all_goals constructor; intro a b h
   case forward =>
@@ -94,8 +96,12 @@ theorem rev_eq_rev : (r*).rev = r.rev* := by
     case leftCons => grind only [rightCons, = Relation.rev.eq_1]
   case backward =>
     induction h
-    case refl => sorry
+    case refl => rfl
     case leftCons => grind only [= Relation.rev.eq_1, rightCons]
+
+@[simp, grind =]
+theorem rev_eq : (r.rev*) b a = (r*) a b := by
+  rw [rev_eq_rev, Relation.rev]
 
 end Reverse
 
@@ -108,16 +114,15 @@ theorem rightInduction
 : motive a b h := by
   -- We construct the proof from the right using left induction by switching the order of the
   -- arguments and using left induction. In order to do that, we define an reversed relation.
-  let r' := r.rev
   rename (r*) a b => h_old
-  have h : (r'*) b a := by sorry
+  have h : (r.rev*) b a := by simpa only [rev_eq]
   -- Induction on the reversed proof of (r*)!
   induction h
   case refl a => apply refl
   case leftCons b₂ b₁ a head tail ih =>
-    have : (r*) a b₁ := by sorry
+    have : (r*) a b₁ := by rwa [rev_eq] at tail
     have : r b₁ b₂ := head
-    have : motive a b₁ assumption := by sorry
+    have : motive a b₁ assumption := ih assumption
     apply rightCons a b₁ b₂ <;> assumption
 
 @[grind <=]
