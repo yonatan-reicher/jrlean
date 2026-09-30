@@ -18,7 +18,6 @@ namespace TypeWithId
 
 abbrev mk t [HasTypeId t] : TypeWithId := ⟨t, inferInstance⟩
 
-@[expose]
 instance : CoeOut TypeWithId Type where
   coe t := t.1
 
@@ -34,10 +33,8 @@ instance : DecidableEq TypeWithId := by
     apply Decidable.isFalse
     grind only
 
-@[expose]
 instance {t : TypeWithId} : HasTypeId t := t.2
 
-@[expose]
 instance : Hashable TypeWithId where
   hash t := hash (typeId t)
 

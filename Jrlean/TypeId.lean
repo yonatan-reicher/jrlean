@@ -39,8 +39,8 @@ public def TypeId.size : TypeId → Nat
   | ⟨_, []⟩ => 1
   | ⟨n, h :: t⟩ => h.size + size ⟨n, t⟩
 
-public def TypeId.inductionOnChildren
-  {P : TypeId → Sort}
+public theorem TypeId.inductionOnChildren
+  {P : TypeId → Prop}
   (id : TypeId)
   (base : P { id with argIds := [] })
   (step : ∀ h t, P { id with argIds := t } → P { id with argIds := h :: t })
@@ -76,8 +76,8 @@ public theorem TypeId.size_lt_of_mem_argIds (id1 id2 : TypeId)
       grind
 
 @[induction_eliminator]
-public def TypeId.induction
-  {P : TypeId → Sort}
+public theorem TypeId.induction
+  {P : TypeId → Prop}
   (ind : ∀ id, (∀ arg ∈ id.argIds, P arg) → P id)
 : ∀ id, P id := by
   /- rintro ⟨n, u, a⟩ -/
