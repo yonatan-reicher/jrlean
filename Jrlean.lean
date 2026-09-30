@@ -1,5 +1,7 @@
 module
 public import Jrlean.Of
+public import Jrlean.Option
+public import Jrlean.ByteArray
 public import Jrlean.Relation
 public import Jrlean.Subrelation
 public import Jrlean.ReflexiveTransitiveClosure
