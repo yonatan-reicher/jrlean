@@ -22,7 +22,7 @@ translations to monads.
 
 namespace Jrlean
 
--- Let's implement a set type as a predicate instead of importing mathlib...
+-- Using a hash set as a set
 private abbrev Set (t : Type u) [BEq t] [Hashable t] := Std.ExtHashSet t
 -- private instance {t : Type u} : CoeSort (Set t) (Type u) where
 --   coe s := { x // s x }
@@ -120,7 +120,7 @@ end Meta
 class EffectResult (e : Effect) (result : Type → Type u) where
   translate {α} : e.Input → (Effect.Output e → result α) → result α
 
-/-- The effects monad has the ability to apply send effects to handlers. -/
+/-- The effects monad has the ability to send effects to handlers. -/
 inductive Effects (effects : Set Effect) (a : Type) where
   | pure : a → Effects effects a
   | effectThen
@@ -155,7 +155,7 @@ def Effects.run
   : Result α :=
   match x with
   | .pure a => Pure.pure a
-  | Effects.effectThen e inp cont h =>
+  | .effectThen e inp cont h =>
     have : EffectResult e Result := h_effect_result e h
     EffectResult.translate inp fun out => run (cont out) h_effect_result
 
