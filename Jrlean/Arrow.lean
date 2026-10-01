@@ -20,9 +20,9 @@ variable {A : Type u → Type u → Type v} [Arrow A]
 def Arrow.id : A α α := ofFunc λ x => x
 def Arrow.composeRight : A α β → A β γ → A α γ := flip composeLeft
 
-@[inherit_doc] infixr:90 " ∘ "  => Arrow.composeLeft
-@[inherit_doc] infixr:min1 " <| "  => Arrow.composeLeft
-@[inherit_doc] infixr:min1 " |> "  => Arrow.composeRight
+infixr:90 " ∘ "  => Arrow.composeLeft
+infixr:min1 " <| "  => Arrow.composeLeft
+infixl:min1 " |> "  => Arrow.composeRight
 
 recommended_spelling "compose" for "∘" in [Arrow.composeLeft]
 
