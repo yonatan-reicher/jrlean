@@ -1,4 +1,5 @@
 module
+public import Jrlean.Arrow
 public import Jrlean.Assumption
 public import Jrlean.ByContra
 public import Jrlean.ByteArray
