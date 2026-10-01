@@ -17,6 +17,8 @@ public import Jrlean.HasTypeId
 public import Jrlean.InstanceInfer
 public import Jrlean.Later
 public import Jrlean.LaterEnvExtension
+public import Jrlean.List
+public import Jrlean.MonadBuilderNotation
 public import Jrlean.Of
 public import Jrlean.Option
 public import Jrlean.ReflexiveTransitiveClosure
